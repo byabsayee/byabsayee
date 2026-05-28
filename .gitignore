@@ -1,0 +1,42 @@
+# =============================================================================
+# .gitignore — Byabsayee ERP
+# Files listed here are NEVER uploaded to GitHub.
+# Anyone cloning the repo won't get these files.
+# =============================================================================
+
+# --- SECRETS (NEVER commit these) ---
+.env
+keys/
+
+# --- PHP dependencies (installed fresh from composer.json) ---
+# These are auto-downloaded by `composer install`, no need to track them
+vendor/
+
+# --- Database files (runtime data, not code) ---
+# MariaDB stores its data here at runtime — never belongs in git
+mariadb/data/
+
+# --- User-uploaded files (runtime data) ---
+# Files users upload while using the app
+uploads/
+storage/
+
+# --- Backups ---
+backups/
+*.sql.gz
+
+# --- Logs ---
+*.log
+logs/
+
+# --- IDE / editor files ---
+.idea/
+.vscode/
+*.swp
+*.swo
+.project
+
+# --- macOS / Windows junk ---
+.DS_Store
+Thumbs.db
+desktop.ini

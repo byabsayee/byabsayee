@@ -1,0 +1,70 @@
+# =============================================================================
+# Byabsayee ERP — docker-compose.yml
+# =============================================================================
+#
+# HOW TO USE (takes about 2 minutes):
+#   1. Copy this file to a folder on your server
+#   2. Download .env.example from:
+#      https://raw.githubusercontent.com/YOUR_GITHUB_USERNAME/byabsayee/main/.env.example
+#   3. Rename it to .env and fill in your values
+#   4. Run:  docker compose up -d
+#      Or paste this file into Portainer → Stacks → Add Stack
+#
+# That's it! Byabsayee will be available at:  http://YOUR_SERVER_IP:1021
+# phpMyAdmin will be available at:            http://YOUR_SERVER_IP:8093
+#
+# On first run, the database schema is imported automatically.
+# =============================================================================
+
+services:
+
+  byabsayee:
+    image: ghcr.io/byabsayee/byabsayee:latest
+    container_name: byabsayee
+    ports:
+      - "1021:1021"
+    volumes:
+      # User-uploaded files (persisted across updates)
+      - byabsayee_uploads:/Sites/byabsayee/uploads
+      # PHP sessions (keeps users logged in across restarts)
+      - byabsayee_sessions:/Sites/byabsayee/storage/sessions
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db:
+    image: mariadb:10.11
+    container_name: byabsayee_db
+    environment:
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASS}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    volumes:
+      # Database files (persisted forever — never lost on restart)
+      - byabsayee_db_data:/var/lib/mysql
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: byabsayee_phpmyadmin
+    ports:
+      - "8093:80"
+    environment:
+      PMA_HOST: db
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    depends_on:
+      - db
+    restart: unless-stopped
+
+volumes:
+  byabsayee_db_data:
+  byabsayee_uploads:
+  byabsayee_sessions:
