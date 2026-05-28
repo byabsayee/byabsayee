@@ -6,7 +6,7 @@
 
 **Open source ERP for small businesses — invoices, inventory, employees, accounting and more.**
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![License: GNU-AGPL-3.0](https://img.shields.io/badge/License-GNU--AGPL--3.0-purple.svg)](LICENSE)
 [![PHP](https://img.shields.io/badge/PHP-8.2-777BB4?logo=php&logoColor=white)](https://php.net)
 [![MariaDB](https://img.shields.io/badge/MariaDB-10.11-003545?logo=mariadb&logoColor=white)](https://mariadb.org)
 [![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)](https://docker.com)
@@ -84,7 +84,7 @@ phpMyAdmin will be available at `http://YOUR_SERVER_IP:8093`
 
 | Requirement | Minimum |
 |-------------|---------|
-| OS | Any Linux distro (Ubuntu 22.04+ recommended) |
+| OS | Any Linux distro |
 | RAM | 512 MB |
 | Disk | 2 GB free |
 | Docker | 24.0+ |
@@ -268,7 +268,7 @@ Please keep code consistent with the existing style (vanilla PHP, no frameworks)
 
 ## License
 
-Byabsayee is open source under the [MIT License](LICENSE).
+Byabsayee is open source under the [GNU-AGPL-3.0 LICENSE](LICENSE).
 You are free to use, modify, and distribute it for personal or commercial purposes.
 
 ---
