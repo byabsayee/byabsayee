@@ -13,7 +13,7 @@ RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 # Bake nginx config into image
-COPY nginx/default.conf /etc/nginx/conf.d/default.conf
+COPY nginx/default.conf /etc/nginx/http.d/default.conf
 RUN mkdir -p /run/nginx
 
 # Supervisord (runs nginx + php-fpm together)
