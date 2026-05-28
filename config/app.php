@@ -35,7 +35,9 @@ return [
     // File uploads
     // -------------------------------------------------------------------------
     'upload' => [
-        'path'      => getenv('UPLOAD_PATH') ?: '/Sites/byabsayee/uploads',
+        // UPLOAD_PATH env var takes priority (set in docker-compose for container path).
+        // Falls back to <project_root>/uploads which works locally and in Docker.
+        'path'      => getenv('UPLOAD_PATH') ?: (defined('BASE_PATH') ? BASE_PATH . '/uploads' : dirname(__DIR__) . '/uploads'),
         'max_size'  => 10 * 1024 * 1024,  // 10 MB in bytes
         'allowed'   => ['jpg','jpeg','png','gif','webp','pdf'],
     ],

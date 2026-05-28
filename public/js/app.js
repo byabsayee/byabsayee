@@ -480,15 +480,4 @@ var MonthNav = {
 global.MonthNav = MonthNav;
 })(window);
 
-// ─── Browser timezone detection ───────────────────────────────────────────────
-// Runs on every page load. Detects the browser's IANA timezone and stores it
-// in a cookie so PHP can call date_default_timezone_set() for ALL date() calls.
-(function () {
-    try {
-        var tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-        if (!tz) return;
-        var exp = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toUTCString();
-        document.cookie = 'byabsayee_tz=' + encodeURIComponent(tz)
-            + '; expires=' + exp + '; path=/; SameSite=Lax';
-    } catch (e) {}
-})();
+

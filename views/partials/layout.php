@@ -293,21 +293,16 @@ window._bookId = <?= $currentBookId ? (int)$currentBookId : 'null' ?>;
     var PREF_KEY = 'sidebar_collapsed';
 
     function initTooltips() {
-        // Set data-label on every nav-item from its .nav-text span or text nodes
+        // Set data-label on every nav-item from its text content (excluding icon text)
         document.querySelectorAll('#sidebar .nav-item').forEach(function(el) {
             if (el.hasAttribute('data-label')) return;
             // Prefer explicit .nav-text span
             var span = el.querySelector('.nav-text');
             if (span) { el.setAttribute('data-label', span.textContent.trim()); return; }
-            // Fallback: gather direct text nodes, skip anything that looks like an attr leak
-            var label = '';
-            el.childNodes.forEach(function(node) {
-                if (node.nodeType === 3) {
-                    var t = node.textContent.trim();
-                    if (t && !t.startsWith('data-')) label += t + ' ';
-                }
-            });
-            label = label.trim();
+            // Clone and strip icon elements to get clean text
+            var clone = el.cloneNode(true);
+            clone.querySelectorAll('i, .notif-badge, .nav-chevron, .nav-dropdown-menu').forEach(function(n){ n.remove(); });
+            var label = clone.textContent.replace(/\s+/g, ' ').trim();
             if (label) el.setAttribute('data-label', label);
         });
     }

@@ -8,6 +8,20 @@
  *   - user_grades             (grade levels, e.g. SSC, HSC)
  *   - user_social_links       (social media links)
  *   - user_profile_visibility (per-field public visibility flags)
+ *
+ * SECURITY: Only run from CLI or localhost.
+ * Run with: php public/migrate_profiles.php
+ */
+
+// Block all non-CLI, non-localhost web access
+if (php_sapi_name() !== 'cli') {
+    $ip = $_SERVER['REMOTE_ADDR'] ?? '';
+    if (!in_array($ip, ['127.0.0.1', '::1'], true)) {
+        http_response_code(403);
+        exit('Access denied. Run from CLI: php public/migrate_profiles.php');
+    }
+}
+
  *   - business_profiles       (extended business/book public profile)
  *   - business_handles        (@businessname system)
  *   - two_factor_auth         (2FA secrets and backup codes)

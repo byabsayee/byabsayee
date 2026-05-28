@@ -166,7 +166,7 @@ class BookLogsController
             $prefix    = explode('.', $action)[0] ?? '';
             $row['link_url'] = null;
             if ($bookId) {
-                // Modules with individual show pages
+                // Modules with individual show pages — only link when subject exists
                 $showRoutes = [
                     'invoice'  => "/books/$bookId/invoices/$subjectId",
                     'customer' => "/books/$bookId/customers/$subjectId",
@@ -188,8 +188,19 @@ class BookLogsController
                     'payment'   => "/books/$bookId/invoices",
                     'book'      => "/books/$bookId/edit",
                 ];
-                if ($subjectId && isset($showRoutes[$prefix])) {
+                if ($subjectId > 0 && isset($showRoutes[$prefix])) {
                     $row['link_url'] = $showRoutes[$prefix];
+                } elseif (!$subjectId && isset($showRoutes[$prefix])) {
+                    // Fall back to list page for show-route modules without a subject
+                    $fallbackList = [
+                        'invoice'  => "/books/$bookId/invoices",
+                        'customer' => "/books/$bookId/customers",
+                        'supplier' => "/books/$bookId/suppliers",
+                        'employee' => "/books/$bookId/employees",
+                        'member'   => "/books/$bookId/employees",
+                        'return'   => "/books/$bookId/returns",
+                    ];
+                    $row['link_url'] = $fallbackList[$prefix] ?? null;
                 } elseif (isset($listRoutes[$prefix])) {
                     $row['link_url'] = $listRoutes[$prefix];
                 }
