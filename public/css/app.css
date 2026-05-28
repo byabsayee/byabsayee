@@ -750,18 +750,24 @@ tbody td { padding: 10px 14px; font-size: 13.5px; vertical-align: middle; }
 
 .activity-feed { display: flex; flex-direction: column; gap: 0; }
 
+/* activity-link: the clickable <a> wrapper for each activity row */
+a.activity-link {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+    border-bottom: 1px solid var(--border);
+    transition: background .12s;
+    cursor: pointer;
+}
+a.activity-link:last-child { border-bottom: none; }
+a.activity-link:hover { background: var(--hover-clr, var(--bg)); }
+
 .activity-item {
     display: flex;
     gap: 10px;
     padding: 10px 10px;
-    border-bottom: 1px solid var(--border);
     align-items: flex-start;
     font-size: 13px;
-}
-.activity-item:last-child { border-bottom: none; }
-
-.activity-item:hover{
-    background: var(--hover-clr);
 }
 
 .activity-icon {
