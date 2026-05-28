@@ -1,0 +1,45 @@
+# =============================================================================
+# .github/workflows/docker-publish.yml
+#
+# What this does:
+#   Every time you push to the "main" branch on GitHub, this workflow
+#   automatically builds your Docker image and uploads it to GHCR
+#   (GitHub Container Registry) as:
+#   ghcr.io/YOUR_GITHUB_USERNAME/byabsayee:latest
+#
+#   Anyone in the world can then run your app just by having docker-compose.yml
+# =============================================================================
+
+name: Build & Publish Docker Image
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-push:
+    name: Build and push to GHCR
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write   # needed to push to GitHub Container Registry
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}   # auto-provided by GitHub, no setup needed
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ghcr.io/${{ github.repository_owner }}/byabsayee:latest
