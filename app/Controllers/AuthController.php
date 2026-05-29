@@ -23,7 +23,7 @@ class AuthController
     public function showLogin(): void
     {
         // If already logged in, go to dashboard
-        if (auth()) redirect('/dashboard');
+        if (auth()) redirect('/books');
 
         require BASE_PATH . '/views/auth/login.php';
     }
@@ -107,7 +107,7 @@ class AuthController
             redirect('/2fa/challenge');
         }
 
-        redirect('/dashboard');
+        redirect('/books');
     }
 
     // =========================================================================
@@ -136,7 +136,7 @@ class AuthController
     // =========================================================================
     public function showRegister(): void
     {
-        if (auth()) redirect('/dashboard');
+        if (auth()) redirect('/books');
         require BASE_PATH . '/views/auth/register.php';
     }
 

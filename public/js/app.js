@@ -2,8 +2,6 @@
 
 /* ============================================================
    TIMEZONE DETECTION
-   Detects browser timezone, stores in cookie so PHP can use it.
-   Fixes the 6-hour offset issue (server UTC vs local time).
    ============================================================ */
 (function() {
     try {
@@ -12,6 +10,84 @@
             document.cookie = 'byabsayee_tz=' + encodeURIComponent(tz) + '; path=/; max-age=31536000; SameSite=Lax';
         }
     } catch(e) {}
+})();
+
+/* ============================================================
+   FILE SIZE VALIDATION
+   Intercepts file inputs before form submission and shows a
+   subtle inline warning instead of letting nginx show a 413.
+
+   Rules (match server-side limits):
+     - Logo / avatar / banner / photo inputs → 2 MB
+     - Expense / attachment uploads          → 10 MB
+   ============================================================ */
+(function() {
+    // Map of input name patterns → max bytes
+    var FILE_LIMITS = [
+        { pattern: /^(logo|avatar|banner|biz[_-]logo|biz[_-]banner|photo)$/i, max: 2 * 1024 * 1024, label: '2 MB' },
+        { pattern: /^(attachment|expense[_-]?file|file)$/i,                    max: 10 * 1024 * 1024, label: '10 MB' },
+    ];
+    var DEFAULT_MAX   = 2 * 1024 * 1024;
+    var DEFAULT_LABEL = '2 MB';
+
+    function limitFor(name) {
+        for (var i = 0; i < FILE_LIMITS.length; i++) {
+            if (FILE_LIMITS[i].pattern.test(name)) return FILE_LIMITS[i];
+        }
+        return { max: DEFAULT_MAX, label: DEFAULT_LABEL };
+    }
+
+    function showFileSizeWarning(input, label) {
+        // Remove any existing warning
+        var existing = input.parentNode.querySelector('.file-size-warning');
+        if (existing) existing.remove();
+
+        var warn = document.createElement('div');
+        warn.className = 'file-size-warning';
+        warn.innerHTML = '<i class="fa-solid fa-circle-exclamation"></i> File is too large. Maximum allowed size is ' + label + '.';
+        warn.style.cssText = 'color:#c0392b;font-size:12px;margin-top:5px;display:flex;align-items:center;gap:5px';
+        input.parentNode.insertBefore(warn, input.nextSibling);
+
+        // Clear the invalid file
+        input.value = '';
+    }
+
+    function clearFileSizeWarning(input) {
+        var existing = input.parentNode.querySelector('.file-size-warning');
+        if (existing) existing.remove();
+    }
+
+    document.addEventListener('change', function(e) {
+        var input = e.target;
+        if (input.tagName !== 'INPUT' || input.type !== 'file') return;
+        if (!input.files || !input.files.length) return;
+
+        var limit = limitFor(input.name || '');
+        var file = input.files[0];
+
+        if (file.size > limit.max) {
+            showFileSizeWarning(input, limit.label);
+        } else {
+            clearFileSizeWarning(input);
+        }
+    });
+
+    // Also block form submission if any file input still has an oversized file
+    document.addEventListener('submit', function(e) {
+        var form = e.target;
+        var inputs = form.querySelectorAll('input[type="file"]');
+        for (var i = 0; i < inputs.length; i++) {
+            var input = inputs[i];
+            if (!input.files || !input.files.length) continue;
+            var limit = limitFor(input.name || '');
+            if (input.files[0].size > limit.max) {
+                e.preventDefault();
+                showFileSizeWarning(input, limit.label);
+                input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                return;
+            }
+        }
+    });
 })();
 
 /* ============================================================

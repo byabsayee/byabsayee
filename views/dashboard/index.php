@@ -16,7 +16,7 @@ ob_start();
 
 <?php if (empty($books)): ?>
 <div class="empty-state">
-    <div class="empty-icon">📒</div>
+    <div class="empty-icon"><i class="fa-solid fa-book"></i></div>
     <h3>No books yet</h3>
     <p>Create a personal book to track income and expenses,<br>or a business book for full accounting features.</p>
     <a href="/books/create" class="btn btn-primary" style="margin-top:8px">+ Create your first book</a>

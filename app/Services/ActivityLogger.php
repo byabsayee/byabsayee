@@ -150,14 +150,6 @@ class ActivityLogger
         $row['icon']       = $icon;
         $row['icon_color'] = $color;
 
-        // Add type for link generation
-        $subjectId = $row['subject_id'] ?? null;
-        $subjectType = $row['subject_type'] ?? '';
-        if ($subjectId && $subjectType) {
-            $row['type'] = $subjectType;
-            $row['href'] = '/books/' . ($row['book_id'] ?? $subjectId) . '/' . $subjectType . '/show/' . $subjectId;
-        }
-
         if (isset($row['old_data']) && is_string($row['old_data'])) {
             $row['old_data'] = json_decode($row['old_data'], true);
         }

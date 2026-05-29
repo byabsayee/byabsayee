@@ -3,7 +3,7 @@
 <div class="page-header">
     <div class="page-header-left">
         <div class="breadcrumb">
-            <a href="/books/<?= $book['id'] ?>">Dashboard</a> <span>›</span>
+            <a href="/books/<?= $book['id'] ?>">Books</a> <span>›</span>
             <a href="/books/<?= $book['id'] ?>/employees">Employees</a> <span>›</span>
             <span>Send Notification</span>
         </div>

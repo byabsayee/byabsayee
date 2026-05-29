@@ -152,7 +152,7 @@ class TwoFactorController
         $_SESSION['user'] = $user;
         unset($_SESSION['2fa_user_id'], $_SESSION['2fa_otp_sent'], $_SESSION['2fa_error']);
 
-        $intended = $_SESSION['intended'] ?? '/dashboard';
+        $intended = $_SESSION['intended'] ?? '/books';
         unset($_SESSION['intended']);
         redirect($intended);
     }
@@ -192,7 +192,7 @@ class TwoFactorController
     public function verifyEmail(array $params): void
     {
         $token = $_GET['token'] ?? '';
-        if (!$token) redirect('/dashboard', ['error' => 'Invalid verification link.']);
+        if (!$token) redirect('/books', ['error' => 'Invalid verification link.']);
 
         $row = Database::row(
             'SELECT * FROM email_verifications WHERE token=? AND used_at IS NULL AND expires_at > NOW()',
@@ -217,7 +217,7 @@ class TwoFactorController
             $_SESSION['user']['email_verified'] = 1;
         }
 
-        redirect('/dashboard', ['success' => '✅ Email verified successfully!']);
+        redirect('/books', ['success' => '✅ Email verified successfully!']);
     }
 
     public function sendVerification(array $params): void

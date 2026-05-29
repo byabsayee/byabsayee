@@ -29,7 +29,7 @@ use App\Controllers\BusinessProfileController;
 // =============================================================================
 // PUBLIC
 // =============================================================================
-$router->get('/', function() { auth() ? redirect('/dashboard') : redirect('/login'); });
+$router->get('/', function() { auth() ? redirect('/books') : redirect('/login'); });
 
 $router->get( '/login',           [AuthController::class, 'showLogin']);
 $router->post('/login',           [AuthController::class, 'login']);
@@ -48,7 +48,7 @@ $router->get('/Business/{slug}/Invoice/{invoice_no}',         [PublicInvoiceCont
 // =============================================================================
 // PROTECTED
 // =============================================================================
-$router->get('/dashboard', [DashboardController::class, 'index']);
+$router->get('/dashboard', function() { redirect('/books'); });
 
 // ── Books ─────────────────────────────────────────────────────────────────────
 $router->get( '/books',             [BookController::class, 'index']);

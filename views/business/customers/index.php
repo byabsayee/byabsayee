@@ -5,7 +5,7 @@ ob_start();
 <div class="page-header">
     <div class="page-header-left">
         <div class="breadcrumb">
-            <a href="/dashboard">Dashboard</a> <span>›</span>
+            <a href="/books">Books</a> <span>›</span>
             <a href="/books/<?= $book['id'] ?>"><?= e($book['name']) ?></a> <span>›</span>
             <span>Customers</span>
         </div>

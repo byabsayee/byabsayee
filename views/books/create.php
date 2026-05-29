@@ -5,7 +5,7 @@ ob_start();
 
 <div class="page-header">
     <div class="page-header-left">
-        <div class="breadcrumb"><a href="/dashboard">Dashboard</a> <span>›</span> <span>New Book</span></div>
+        <div class="breadcrumb"><a href="/books">Books</a> <span>›</span> <span>New Book</span></div>
         <h1>Create a Book</h1>
     </div>
 </div>
@@ -100,7 +100,7 @@ ob_start();
 
     <div style="display:flex;gap:10px">
         <button type="submit" class="btn btn-primary">Create Book</button>
-        <a href="/dashboard" class="btn btn-secondary">Cancel</a>
+        <a href="/books" class="btn btn-secondary">Cancel</a>
     </div>
 </form>
 

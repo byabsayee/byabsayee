@@ -423,7 +423,7 @@ $visibleModules = array_filter($allModules, fn($m) => $vCan($m['perm'][0], $m['p
 .biz-header-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .biz-notif-btn{width:36px;height:36px;border-radius:var(--radius);border:1.5px solid var(--border);background:var(--white);color:var(--text-muted);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px;transition:background .12s,color .12s;flex-shrink:0}
 .biz-notif-btn:hover{background:var(--bg);color:var(--brand)}
-.dash-stat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}
+.dash-stat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
 .stat-card{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:14px;display:flex;align-items:center;gap:12px}
 .stat-card-link{text-decoration:none;color:inherit;transition:box-shadow .15s,transform .15s}
 .stat-card-link:hover{box-shadow:var(--shadow-md);transform:translateY(-1px)}

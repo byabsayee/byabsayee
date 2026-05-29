@@ -57,7 +57,7 @@ ob_start();
 <div class="page-header">
     <div class="page-header-left">
         <div class="breadcrumb">
-            <a href="/books/<?= $book['id'] ?>">Dashboard</a> <span>›</span>
+            <a href="/books/<?= $book['id'] ?>">Books</a> <span>›</span>
             <a href="/books/<?= $book['id'] ?>/invoices">Invoices</a> <span>›</span>
             <span><?= e($invoice['invoice_no']) ?></span>
         </div>

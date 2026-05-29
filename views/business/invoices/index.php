@@ -25,7 +25,7 @@ usort($mergedRows, function($a, $b) {
 <div class="page-header">
     <div class="page-header-left">
         <div class="breadcrumb">
-            <a href="/books/<?= $book['id'] ?>">Dashboard</a> <span>›</span>
+            <a href="/books/<?= $book['id'] ?>">Books</a> <span>›</span>
             <span>Invoices</span>
         </div>
         <h1><i class="fa-solid fa-file-invoice" style="color:var(--brand)"></i> Invoices</h1>

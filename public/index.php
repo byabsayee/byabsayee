@@ -98,7 +98,45 @@ session_set_cookie_params([
 session_name(config('session.name'));
 session_start();
 
-// ---- 7. SET UP ROUTER -------------------------------------------------------
+// ---- 7. HANDLE NGINX ERROR ROUTING -----------------------------------------
+// Nginx routes 403/413/404 errors to /index.php?_error=N for custom pages.
+if (isset($_GET['_error'])) {
+    $errorCode = (int)$_GET['_error'];
+    if ($errorCode === 413) {
+        http_response_code(413);
+        $pageTitle = '413 — File Too Large';
+        ob_start();
+        ?>
+        <div style="min-height:60vh;display:flex;align-items:center;justify-content:center">
+            <div style="text-align:center;max-width:440px">
+                <div style="font-size:56px;margin-bottom:16px">📎</div>
+                <h1 style="font-size:26px;margin-bottom:8px">File Too Large</h1>
+                <p style="color:var(--text-muted);margin-bottom:24px;font-size:15px">
+                    The file you tried to upload exceeds the maximum allowed size.<br>
+                    Please reduce the file size and try again.
+                </p>
+                <a href="javascript:history.back()" class="btn btn-secondary" style="margin-right:8px">← Go Back</a>
+                <a href="/books" class="btn btn-primary">My Books</a>
+            </div>
+        </div>
+        <?php
+        $content = ob_get_clean();
+        require BASE_PATH . '/views/partials/layout.php';
+        exit;
+    }
+    if ($errorCode === 403) {
+        http_response_code(403);
+        require BASE_PATH . '/views/errors/403.php';
+        exit;
+    }
+    if ($errorCode === 404) {
+        http_response_code(404);
+        require BASE_PATH . '/views/errors/404.php';
+        exit;
+    }
+}
+
+// ---- 8. SET UP ROUTER -------------------------------------------------------
 use App\Helpers\Router;
 
 $router = new Router();
@@ -106,5 +144,5 @@ $router = new Router();
 // Load all route definitions (keeps this file clean)
 require_once BASE_PATH . '/routes.php';
 
-// ---- 8. DISPATCH THE REQUEST ------------------------------------------------
+// ---- 9. DISPATCH THE REQUEST ------------------------------------------------
 $router->dispatch();

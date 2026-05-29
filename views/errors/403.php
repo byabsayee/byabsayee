@@ -11,7 +11,7 @@ ob_start();
             Contact the book owner if you think this is a mistake.
         </p>
         <a href="javascript:history.back()" class="btn btn-secondary" style="margin-right:8px">← Go Back</a>
-        <a href="/dashboard" class="btn btn-primary">Dashboard</a>
+        <a href="/books" class="btn btn-primary">My Books</a>
     </div>
 </div>
 <?php

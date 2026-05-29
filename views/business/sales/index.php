@@ -6,7 +6,7 @@ ob_start();
 <div class="page-header">
     <div class="page-header-left">
         <div class="breadcrumb">
-            <a href="/books/<?= $book['id'] ?>">Dashboard</a> <span>›</span>
+            <a href="/books/<?= $book['id'] ?>">Books</a> <span>›</span>
             <span>Sales</span>
         </div>
         <h1><i class="fa-solid fa-arrow-trend-up" style="color:var(--brand)"></i> Sales</h1>

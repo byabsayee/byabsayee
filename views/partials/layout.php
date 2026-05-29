@@ -65,17 +65,17 @@ function navActive(string $path): string {
             </div>
             <span class="s-logo-text">Byabsayee</span>
         </a>
-        <button class="sidebar-collapse-btn" id="sidebarCollapseBtn"
-                onclick="toggleSidebar()" title="Collapse sidebar" aria-label="Toggle sidebar">
-            <i class="fa-solid fa-angles-left" id="sidebarCollapseIcon"></i>
-        </button>
     </div>
+    <button class="sidebar-collapse-btn" id="sidebarCollapseBtn"
+            onclick="toggleSidebar()" title="Collapse" aria-label="Toggle sidebar">
+        <i class="fa-solid fa-angles-left" id="sidebarCollapseIcon"></i>
+    </button>
 
     <nav class="sidebar-nav">
 
         <?php if ($sidebarBook): ?>
 
-        <a href="/dashboard" class="nav-item nav-back" data-label="All Books">
+        <a href="/books" title="All Books" class="nav-item nav-back" data-label="All Books">
             <i class="fa-solid fa-arrow-left"></i> <span class="nav-text">All Books</span>
         </a>
 
@@ -113,7 +113,7 @@ function navActive(string $path): string {
         <?php if ($sidebarCan('invoices','view') || $sidebarCan('pos','view')): ?>
         <div class="nav-dropdown <?= $invSubActive ? 'open' : '' ?>" id="navInvoices">
             <div class="nav-dropdown-trigger nav-item <?= $invSubActive ? 'active' : '' ?>">
-                <span><a href="/books/<?= $currentBookId ?>/invoices"  class="nav-item <?= $uri === '/books/'.$currentBookId.'/invoices' ? 'active' : '' ?>"><i class="fa-solid fa-file-invoice"></i> Invoices</a></span>
+                <span><a href="/books/<?= $currentBookId ?>/invoices" title="Invoices"  class="nav-item <?= $uri === '/books/'.$currentBookId.'/invoices' ? 'active' : '' ?>"><i class="fa-solid fa-file-invoice"></i> Invoices</a></span>
                 <i onclick="toggleNavDropdown('navInvoices', event)" class="fa-solid fa-chevron-down nav-chevron"></i>
             </div>
             <div class="nav-dropdown-menu">
@@ -124,67 +124,77 @@ function navActive(string $path): string {
         </div>
         <?php endif; ?>
         <?php if ($sidebarCan('products','view')): ?>
-        <a href="/books/<?= $currentBookId ?>/products"    class="nav-item <?= navActive('/books/'.$currentBookId.'/products') ?>">     <i class="fa-solid fa-box"></i> Products</a>
+        <a href="/books/<?= $currentBookId ?>/products"     title="Products"    class="nav-item <?= navActive('/books/'.$currentBookId.'/products') ?>">     <i class="fa-solid fa-box"></i> Products</a>
         <?php endif; ?>
         <?php if ($sidebarCan('funds','view')): ?>
-        <a href="/books/<?= $currentBookId ?>/funds"       class="nav-item <?= navActive('/books/'.$currentBookId.'/funds') ?>">        <i class="fa-solid fa-piggy-bank"></i> Funds</a>
+        <a href="/books/<?= $currentBookId ?>/funds"        title="Funds"       class="nav-item <?= navActive('/books/'.$currentBookId.'/funds') ?>">        <i class="fa-solid fa-piggy-bank"></i> Funds</a>
         <?php endif; ?>
         <?php if ($sidebarCan('expenses','view')): ?>
-        <a href="/books/<?= $currentBookId ?>/expenses"    class="nav-item <?= navActive('/books/'.$currentBookId.'/expenses') ?>">     <i class="fa-solid fa-receipt"></i> Expenses</a>
+        <a href="/books/<?= $currentBookId ?>/expenses"     title="Expenses"    class="nav-item <?= navActive('/books/'.$currentBookId.'/expenses') ?>">     <i class="fa-solid fa-receipt"></i> Expenses</a>
         <?php endif; ?>
         <?php if ($sidebarCan('dues','view')): ?>
-        <a href="/books/<?= $currentBookId ?>/dues"        class="nav-item <?= navActive('/books/'.$currentBookId.'/dues') ?>">         <i class="fa-solid fa-hand-holding-dollar"></i> Dues</a>
+        <a href="/books/<?= $currentBookId ?>/dues"         title="Dues"        class="nav-item <?= navActive('/books/'.$currentBookId.'/dues') ?>">         <i class="fa-solid fa-hand-holding-dollar"></i> Dues</a>
         <?php endif; ?>
         <?php if ($sidebarCan('debts','view')): ?>
-        <a href="/books/<?= $currentBookId ?>/debts"       class="nav-item <?= navActive('/books/'.$currentBookId.'/debts') ?>">        <i class="fa-solid fa-file-circle-minus"></i> Debts</a>
+        <a href="/books/<?= $currentBookId ?>/debts"        title="Debts"       class="nav-item <?= navActive('/books/'.$currentBookId.'/debts') ?>">        <i class="fa-solid fa-file-circle-minus"></i> Debts</a>
         <?php endif; ?>
         <?php if ($sidebarCan('customers','view')): ?>
-        <a href="/books/<?= $currentBookId ?>/customers"   class="nav-item <?= navActive('/books/'.$currentBookId.'/customers') ?>">    <i class="fa-solid fa-users"></i> Customers</a>
+        <a href="/books/<?= $currentBookId ?>/customers"    title="Customers"   class="nav-item <?= navActive('/books/'.$currentBookId.'/customers') ?>">    <i class="fa-solid fa-users"></i> Customers</a>
         <?php endif; ?>
         <?php if ($sidebarCan('suppliers','view')): ?>
-        <a href="/books/<?= $currentBookId ?>/suppliers"   class="nav-item <?= navActive('/books/'.$currentBookId.'/suppliers') ?>">    <i class="fa-solid fa-user-tie"></i> Suppliers</a>
+        <a href="/books/<?= $currentBookId ?>/suppliers"    title="Suppliers"   class="nav-item <?= navActive('/books/'.$currentBookId.'/suppliers') ?>">    <i class="fa-solid fa-user-tie"></i> Suppliers</a>
         <?php endif; ?>
         <?php if ($sidebarCan('employees','view')): ?>
-        <a href="/books/<?= $currentBookId ?>/employees"   class="nav-item <?= navActive('/books/'.$currentBookId.'/employees') ?>">    <i class="fa-solid fa-id-badge"></i> Employees</a>
+        <a href="/books/<?= $currentBookId ?>/employees"    title="Employees"   class="nav-item <?= navActive('/books/'.$currentBookId.'/employees') ?>">    <i class="fa-solid fa-id-badge"></i> Employees</a>
         <?php endif; ?>
         <?php if ($sidebarCan('contacts','view')): ?>
-        <a href="/books/<?= $currentBookId ?>/contacts"    class="nav-item <?= navActive('/books/'.$currentBookId.'/contacts') ?>">     <i class="fa-solid fa-address-book"></i> Contacts</a>
+        <a href="/books/<?= $currentBookId ?>/contacts"     title="Contacts"    class="nav-item <?= navActive('/books/'.$currentBookId.'/contacts') ?>">     <i class="fa-solid fa-address-book"></i> Contacts</a>
         <?php endif; ?>
         <?php if ($sidebarCan('coupons','view')): ?>
-        <a href="/books/<?= $currentBookId ?>/coupons"     class="nav-item <?= navActive('/books/'.$currentBookId.'/coupons') ?>">      <i class="fa-solid fa-ticket"></i> Coupons</a>
+        <a href="/books/<?= $currentBookId ?>/coupons"      title="Coupons"     class="nav-item <?= navActive('/books/'.$currentBookId.'/coupons') ?>">      <i class="fa-solid fa-ticket"></i> Coupons</a>
         <?php endif; ?>
         <?php if ($sidebarIsOwner): ?>
-        <a href="/books/<?= $currentBookId ?>/deliveries"  class="nav-item <?= navActive('/books/'.$currentBookId.'/deliveries') ?>">   <i class="fa-solid fa-truck-fast"></i> Deliveries</a>
+        <a href="/books/<?= $currentBookId ?>/deliveries"   title="Deliveries"  class="nav-item <?= navActive('/books/'.$currentBookId.'/deliveries') ?>">   <i class="fa-solid fa-truck-fast"></i> Deliveries</a>
         <?php endif; ?>
         <?php if ($sidebarCan('reports','view')): ?>
-        <a href="/books/<?= $currentBookId ?>/reports"     class="nav-item <?= navActive('/books/'.$currentBookId.'/reports') ?>">      <i class="fa-solid fa-chart-line"></i> Reports</a>
+        <a href="/books/<?= $currentBookId ?>/reports"      title="Reports"     class="nav-item <?= navActive('/books/'.$currentBookId.'/reports') ?>">      <i class="fa-solid fa-chart-line"></i> Reports</a>
         <?php endif; ?>
         <?php if ($sidebarCan('logs','view')): ?>
-        <a href="/books/<?= $currentBookId ?>/logs"        class="nav-item <?= navActive('/books/'.$currentBookId.'/logs') ?>">          <i class="fa-solid fa-clock-rotate-left"></i> Activity Log</a>
+        <a href="/books/<?= $currentBookId ?>/logs"         title="Logs"        class="nav-item <?= navActive('/books/'.$currentBookId.'/logs') ?>">          <i class="fa-solid fa-clock-rotate-left"></i> Activity Log</a>
         <?php endif; ?>
 
         <?php else: ?>
-        <a href="/books/<?= $currentBookId ?>/contacts" class="nav-item <?= navActive('/books/'.$currentBookId.'/contacts') ?>">
+        <a href="/books/<?= $currentBookId ?>/contacts"     title="Contacts"    class="nav-item <?= navActive('/books/'.$currentBookId.'/contacts') ?>">
             <i class="fa-solid fa-address-book"></i> Contacts
         </a>
         <?php endif; ?>
 
         <?php if ($sidebarIsOwner): ?>
-        <a href="/books/<?= $currentBookId ?>/edit" class="nav-item <?= navActive('/books/'.$currentBookId.'/edit') ?>">
+        <a href="/books/<?= $currentBookId ?>/edit"         title="Book Settings" class="nav-item <?= navActive('/books/'.$currentBookId.'/edit') ?>">
             <i class="fa-solid fa-gear"></i> Book Settings
         </a>
         <?php endif; ?>
 
         <?php else: ?>
 
-        <div class="sidebar-search-wrap">
-            <i class="fa-solid fa-magnifying-glass"></i>
-            <input type="text" id="bookFilterInput" placeholder="Find a book…"
-                   oninput="filterBooks(this.value)">
-        </div>
+        <a href="/books" class="nav-item <?= activePage('books') ?>" data-label="Books" title="Books">
+            <i class="fa-solid fa-book"></i> <span class="nav-text">Books</span>
+        </a>
 
-        <a href="/dashboard" class="nav-item <?= activePage('dashboard') ?>" data-label="Dashboard">
-            <i class="fa-solid fa-gauge"></i> <span class="nav-text">Dashboard</span>
+        <a href="/chat" class="nav-item <?= activePage('chat') ?>" data-label="Chat" title="Chat">
+            <i class="fa-solid fa-message"></i> <span class="nav-text">Chat</span>
+        </a>
+
+        <a href="/wallet" class="nav-item <?= activePage('wallet') ?>" data-label="Wallet" title="Wallet">
+            <i class="fa-solid fa-wallet"></i> <span class="nav-text">Wallet</span>
+        </a>
+
+        <a href="/cloud" class="nav-item <?= activePage('cloud') ?>" data-label="Cloud" title="Cloud">
+            <i class="fa-solid fa-cloud"></i> <span class="nav-text">Cloud</span>
+        </a>
+
+        <a href="/marketplace" class="nav-item <?= activePage('marketplace') ?>" data-label="Marketplace" title="Marketplace">
+            <i class="fa-solid fa-store"></i> <span class="nav-text">Marketplace</span>
         </a>
 
         <?php endif; ?>
@@ -192,15 +202,15 @@ function navActive(string $path): string {
     </nav>
 
     <div class="sidebar-bottom">
-        <button onclick="openNotifPanel(event)" class="nav-item" style="width:100%;text-align:left;background:none;border:none;cursor:pointer;position:relative">
+        <button onclick="openNotifPanel(event)" class="nav-item" style="width:100%;text-align:left;background:none;border:none;cursor:pointer;position:relative" title="Notifications">
             <i class="fa-solid fa-bell"></i> Notifications
             <span class="notif-badge" id="sidebarNotifBadge" style="display:none;position:absolute;top:6px;left:22px"></span>
         </button>
-        <a href="/settings" class="nav-item" data-label="App Settings">
+        <a href="/settings" title="App Settings" class="nav-item" data-label="App Settings">
             <i class="fa-solid fa-sliders"></i> <span class="nav-text">App Settings</span>
         </a>
         <div class="sidebar-user">
-            <a href="/profile" class="s-avatar" style="text-decoration:none;color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0" title="My Profile">
+            <a href="/profile" class="s-avatar" style="text-decoration:none;color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0" title="Profile">
                 <?php if (!empty(auth()['avatar'])): ?>
                 <img src="<?= asset('uploads/'.auth()['avatar']) ?>" style="width:100%;height:100%;border-radius:50%;object-fit:cover" onerror="this.style.display='none';this.parentElement.textContent='<?= mb_strtoupper(mb_substr(auth()['name']??'U',0,1)) ?>'">
                 <?php else: ?>
@@ -311,15 +321,18 @@ window._bookId = <?= $currentBookId ? (int)$currentBookId : 'null' ?>;
         var sb   = document.getElementById('sidebar');
         var icon = document.getElementById('sidebarCollapseIcon');
         var main = document.querySelector('.app-main');
+        var cb = document.getElementById('sidebarCollapseBtn');
         if (!sb) return;
         if (collapsed) {
             sb.classList.add('collapsed');
             if (icon) icon.className = 'fa-solid fa-angles-right';
             if (main) main.style.marginLeft = 'var(--sidebar-collapsed-w)';
+            if (cb) cb.title = 'Expand';
         } else {
             sb.classList.remove('collapsed');
             if (icon) icon.className = 'fa-solid fa-angles-left';
             if (main) main.style.marginLeft = 'var(--sidebar-w)';
+            if (cb) cb.title = 'Collapse';
         }
     }
 

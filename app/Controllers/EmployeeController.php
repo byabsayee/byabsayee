@@ -426,13 +426,13 @@ class EmployeeController
         );
 
         if (!$inv || strtotime($inv['expires_at']) < time()) {
-            redirect('/dashboard', ['error' => 'This invitation has expired or is invalid.']);
+            redirect('/books', ['error' => 'This invitation has expired or is invalid.']);
         }
 
         // Must match the logged-in user's email
         $user = auth();
         if (strtolower($user['email']) !== strtolower($inv['email'])) {
-            redirect('/dashboard', ['error' => 'This invitation was sent to a different email address ('.$inv['email'].').']);
+            redirect('/books', ['error' => 'This invitation was sent to a different email address ('.$inv['email'].').']);
         }
 
         require BASE_PATH . '/views/business/employees/invitation.php';
@@ -450,13 +450,13 @@ class EmployeeController
             'SELECT * FROM employee_invitations WHERE token=? AND status="pending"',
             [$params['token']]
         );
-        if (!$inv) redirect('/dashboard', ['error' => 'Invitation not found or already responded.']);
+        if (!$inv) redirect('/books', ['error' => 'Invitation not found or already responded.']);
 
         $user   = auth();
         $action = $_POST['action'] ?? '';
 
         if (strtolower($user['email']) !== strtolower($inv['email'])) {
-            redirect('/dashboard', ['error' => 'This invitation belongs to a different email.']);
+            redirect('/books', ['error' => 'This invitation belongs to a different email.']);
         }
 
         if ($action === 'accept') {
@@ -527,10 +527,10 @@ class EmployeeController
                 [$user['id'], now(), $inv['id']]
             );
 
-            redirect('/dashboard', ['success' => 'Invitation declined.']);
+            redirect('/books', ['success' => 'Invitation declined.']);
         }
 
-        redirect('/dashboard');
+        redirect('/books');
     }
 
     // =========================================================================

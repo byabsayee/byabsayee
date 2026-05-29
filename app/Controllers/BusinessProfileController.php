@@ -268,13 +268,14 @@ class BusinessProfileController
         return null;
     }
 
-        private function getBookOrFail(int $id): array
+    private function getBookOrFail(int $id): array
     {
         $book = book_for_user($id, 'business');
-        if (!$book) { http_response_code(404); require BASE_PATH.'/views/errors/404.php'; exit; }
+        if (!$book) { 
+            http_response_code(404); 
+            require BASE_PATH.'/views/errors/404.php'; 
+            exit; 
+        }
         return $book;
-    }
-        if (!$book) { http_response_code(403); die('Access denied.'); }
-        return $book;
-    }
+     }
 }

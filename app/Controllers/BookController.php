@@ -7,7 +7,52 @@ class BookController
     public function index(): void
     {
         if (guest()) redirect('/login');
-        redirect('/dashboard');
+
+        $userId = auth()['id'];
+        $search = trim($_GET['q'] ?? '');
+
+        $books = Database::query(
+            'SELECT b.*,
+                CASE
+                    WHEN b.type = "personal" THEN
+                        COALESCE((SELECT SUM(e.amount) FROM entries e WHERE e.book_id=b.id AND e.type="in"  AND e.deleted_at IS NULL),0)
+                    ELSE
+                        COALESCE((SELECT SUM(i.total) FROM invoices i WHERE i.book_id=b.id AND i.type="sale"     AND i.status="paid" AND i.deleted_at IS NULL),0)
+                END AS total_in,
+                CASE
+                    WHEN b.type = "personal" THEN
+                        COALESCE((SELECT SUM(e.amount) FROM entries e WHERE e.book_id=b.id AND e.type="out" AND e.deleted_at IS NULL),0)
+                    ELSE
+                        COALESCE((SELECT SUM(i.total) FROM invoices i WHERE i.book_id=b.id AND i.type="purchase" AND i.status="paid" AND i.deleted_at IS NULL),0)
+                END AS total_out,
+                (b.user_id = ?) AS is_owner
+             FROM books b
+             WHERE b.deleted_at IS NULL
+               AND (
+                   b.user_id = ?
+                   OR EXISTS (
+                       SELECT 1 FROM book_members bm
+                       WHERE bm.book_id = b.id AND bm.user_id = ? AND bm.status = "active"
+                   )
+               )
+             ORDER BY is_owner DESC, b.created_at DESC',
+            [$userId, $userId, $userId]
+        );
+
+        // Apply search filter
+        if ($search !== '') {
+            $q = mb_strtolower($search);
+            $books = array_filter($books, function($b) use ($q) {
+                return str_contains(mb_strtolower($b['name']), $q)
+                    || str_contains(mb_strtolower($b['type']), $q);
+            });
+            $books = array_values($books);
+        }
+
+        $myBooks     = array_values(array_filter($books, fn($b) => $b['is_owner']));
+        $sharedBooks = array_values(array_filter($books, fn($b) => !$b['is_owner']));
+
+        require BASE_PATH . '/views/books/index.php';
     }
 
     public function create(): void
