@@ -955,7 +955,7 @@ a.activity-link:hover { background: var(--hover-clr, var(--bg)); }
     letter-spacing: .5px;
     background: var(--bg);
     color: var(--text-muted);
-    border: 1px solid var(--border);
+    border: none;
     border-radius: 99px;
     padding: 2px 7px;
     white-space: nowrap;

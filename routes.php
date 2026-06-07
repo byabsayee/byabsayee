@@ -221,6 +221,13 @@ $router->post('/profile/profile',              [ProfileController::class, 'saveP
 $router->post('/profile/education',            [ProfileController::class, 'saveEducation']);
 $router->post('/profile/social',               [ProfileController::class, 'saveSocial']);
 $router->post('/profile/visibility',           [ProfileController::class, 'saveVisibility']);
+$router->post('/profile/experience',           [ProfileController::class, 'saveExperience']);
+$router->post('/profile/change-password',      [ProfileController::class, 'changePassword']);
+$router->post('/profile/change-password/2fa',  [ProfileController::class, 'confirmPasswordChange']);
+$router->post('/profile/security/2fa',         [ProfileController::class, 'saveSecurity2FA']);
+$router->post('/profile/security/sessions',    [ProfileController::class, 'securitySessions']);
+$router->post('/profile/security/sessions/revoke', [ProfileController::class, 'revokeSession']);
+$router->get( '/profile/cv/pdf',               [ProfileController::class, 'generateCvPdf']);
 
 // ── Business Profile (per-book) ───────────────────────────────────────────────
 $router->get( '/books/{id}/business-profile',                [BusinessProfileController::class, 'edit']);
@@ -241,6 +248,7 @@ $router->get( '/books/{id}/logs',                           [BookLogsController:
 $router->get( '/2fa/setup',       [TwoFactorController::class, 'showSetup']);
 $router->post('/2fa/setup',       [TwoFactorController::class, 'saveSetup']);
 $router->get( '/2fa/challenge',   [TwoFactorController::class, 'showChallenge']);
+$router->get( '/profile/security/totp-setup',  [TwoFactorController::class, 'getTotpSetup']);
 $router->post('/2fa/challenge',   [TwoFactorController::class, 'verifyChallenge']);
 $router->post('/2fa/send-otp',    [TwoFactorController::class, 'sendOtp']);
 $router->post('/2fa/disable',     [TwoFactorController::class, 'disable']);

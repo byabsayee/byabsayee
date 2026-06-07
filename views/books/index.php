@@ -33,7 +33,7 @@ $searchQ = htmlspecialchars($_GET['q'] ?? '', ENT_QUOTES);
 
 <?php if (empty($myBooks) && empty($sharedBooks)): ?>
 <div class="empty-state">
-    <div class="empty-icon">📒</div>
+    <div class="empty-icon"><i class="fa-solid fa-book"></i></div>
     <?php if ($searchQ): ?>
     <h3>No books found</h3>
     <p>No books match &ldquo;<?= e($_GET['q'] ?? '') ?>&rdquo;.</p>

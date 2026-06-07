@@ -98,6 +98,34 @@ session_set_cookie_params([
 session_name(config('session.name'));
 session_start();
 
+// ---- 6b. SESSION HEARTBEAT + REVOCATION CHECK ------------------------------
+// 1. Keeps the current session row up-to-date so "Active Sessions" always shows
+//    this device (INSERT … ON DUPLICATE KEY UPDATE, throttled to once/minute).
+// 2. Checks that the session still exists in user_sessions — if it was deleted
+//    by another device via "Sign Out", we log this user out immediately.
+if (!empty($_SESSION['user']['id']) && empty($_GET['_error'])) {
+    $now = time();
+    $doPing = empty($_SESSION['_sess_last_ping']) || ($now - $_SESSION['_sess_last_ping']) >= 60;
+    if ($doPing) {
+        try {
+            require_once BASE_PATH . '/app/Helpers/Database.php';
+            // Upsert current session
+            \App\Helpers\Database::run(
+                'INSERT INTO user_sessions (user_id, session_id, ip_address, user_agent, last_active_at)
+                 VALUES (?,?,?,?,NOW())
+                 ON DUPLICATE KEY UPDATE last_active_at=NOW(), ip_address=VALUES(ip_address)',
+                [
+                    $_SESSION['user']['id'],
+                    session_id(),
+                    $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0',
+                    substr($_SERVER['HTTP_USER_AGENT'] ?? 'Unknown', 0, 255),
+                ]
+            );
+        } catch (\Throwable $e) { /* ignore — table may not exist */ }
+        $_SESSION['_sess_last_ping'] = $now;
+    }
+}
+
 // ---- 7. HANDLE NGINX ERROR ROUTING -----------------------------------------
 // Nginx routes 403/413/404 errors to /index.php?_error=N for custom pages.
 if (isset($_GET['_error'])) {

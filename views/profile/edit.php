@@ -46,7 +46,7 @@ $countryCodes = [
 .fg label{display:block;font-size:13px;font-weight:600;color:var(--text);margin-bottom:6px}
 .fg label .hint{font-weight:400;color:var(--text-muted);margin-left:6px;font-size:12px}
 .fg input[type=text],.fg input[type=email],.fg input[type=url],.fg input[type=number],
-.fg input[type=date],.fg select,.fg textarea{width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;background:var(--input-bg,var(--bg));color:var(--text);font-size:14px;box-sizing:border-box;transition:border-color .15s;font-family:inherit}
+.fg input[type=date],.fg input[type=password],.fg select,.fg textarea{width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;background:var(--input-bg,var(--bg));color:var(--text);font-size:14px;box-sizing:border-box;transition:border-color .15s;font-family:inherit}
 .fg input:focus,.fg select:focus,.fg textarea:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px rgba(26,107,74,.1)}
 .fg textarea{resize:vertical;min-height:80px}
 .fg-row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
@@ -101,6 +101,23 @@ $countryCodes = [
 .profile-link-card a{font-size:13px;color:var(--brand);word-break:break-all;text-decoration:none}
 .profile-link-card a:hover{text-decoration:underline}
 
+/* security panel */
+.security-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600}
+.badge-on{background:rgba(26,107,74,.12);color:#1a6b4a}
+.badge-off{background:rgba(239,68,68,.1);color:#ef4444}
+.tfa-method-card{border:2px solid var(--border);border-radius:10px;padding:14px 16px;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:12px}
+.tfa-method-card:hover{border-color:var(--brand)}
+.tfa-method-card.selected{border-color:var(--brand);background:var(--brand-light,rgba(26,107,74,.06))}
+.tfa-method-card input[type=radio]{display:none}
+.tfa-method-card .tmc-icon{width:38px;height:38px;border-radius:10px;background:var(--bg);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.tfa-method-card.selected .tmc-icon{background:var(--brand);border-color:var(--brand);color:#fff}
+
+/* session card */
+.session-item{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)}
+.session-item:last-child{border-bottom:none}
+.session-icon{width:36px;height:36px;border-radius:8px;background:var(--bg);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:15px;color:var(--text-muted);flex-shrink:0}
+.session-current{background:rgba(26,107,74,.1);border-color:var(--brand);color:var(--brand)}
+
 @media(max-width:760px){.pe-wrap{flex-direction:column}.pe-nav{width:100%;position:static}.fg-row,.fg-row-3{grid-template-columns:1fr}}
 </style>
 
@@ -144,11 +161,13 @@ $countryCodes = [
         <a href="?tab=basic"      class="<?= $tab==='basic'?'active':'' ?>"><i class="fa-solid fa-user"></i> Basic Info</a>
         <a href="?tab=profile"    class="<?= $tab==='profile'?'active':'' ?>"><i class="fa-solid fa-address-card"></i> Profile Details</a>
         <a href="?tab=education"  class="<?= $tab==='education'?'active':'' ?>"><i class="fa-solid fa-graduation-cap"></i> Education</a>
+        <a href="?tab=experience" class="<?= $tab==='experience'?'active':'' ?>"><i class="fa-solid fa-briefcase"></i> Experience</a>
         <a href="?tab=social"     class="<?= $tab==='social'?'active':'' ?>"><i class="fa-solid fa-share-nodes"></i> Social Links</a>
-        <div class="nav-group">Privacy</div>
+        <div class="nav-group">Privacy & Security</div>
         <a href="?tab=visibility" class="<?= $tab==='visibility'?'active':'' ?>"><i class="fa-solid fa-eye"></i> Visibility</a>
-        <div class="nav-group">Print</div>
-        <a href="/profile/cv" target="_blank"><i class="fa-solid fa-print"></i> Print CV</a>
+        <a href="?tab=security"   class="<?= $tab==='security'?'active':'' ?>"><i class="fa-solid fa-shield-halved"></i> Security</a>
+        <div class="nav-group">CV</div>
+        <a href="/profile/cv/pdf" target="_blank"><i class="fa-solid fa-print"></i> Print / Download CV</a>
     </nav>
 
     <!-- Content -->
@@ -353,6 +372,16 @@ $countryCodes = [
                 <input type="text" name="expertise" value="<?= e($profile['expertise']??'') ?>" placeholder="PHP, MySQL, Accounting...">
             </div>
 
+            <div class="fg">
+                <label>Languages <span class="hint">Comma-separated, e.g. English, Bengali, Arabic</span></label>
+                <input type="text" name="languages" value="<?= e($profile['languages']??'') ?>" placeholder="English, Bengali...">
+            </div>
+
+            <div class="fg">
+                <label>Interests &amp; Hobbies <span class="hint">Comma-separated, e.g. Photography, Travelling, Chess</span></label>
+                <input type="text" name="hobbies" value="<?= e($profile['hobbies']??'') ?>" placeholder="Photography, Reading, Chess...">
+            </div>
+
             <div class="fg-row">
                 <div class="fg">
                     <label>Years of Experience</label>
@@ -512,6 +541,87 @@ $countryCodes = [
         </form>
     </div>
 
+    <?php elseif ($tab === 'experience'): ?>
+    <!-- ── WORK EXPERIENCE ─────────────────────────────────────────────── -->
+    <div class="pe-panel">
+        <h2><i class="fa-solid fa-briefcase" style="color:var(--brand);margin-right:8px"></i>Work Experience</h2>
+        <p class="panel-desc">Add your professional work history. Each entry can be toggled visible on your public profile via the Visibility tab.</p>
+        <form method="POST" action="/profile/experience">
+            <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
+            <div id="expList">
+                <?php if (!empty($experience)): foreach ($experience as $exp): ?>
+                <div class="repeat-item">
+                    <div class="item-fields" style="grid-template-columns:1fr 1fr">
+                        <div class="fg" style="margin:0"><label style="font-size:11px">Organisation / Company *</label>
+                            <input type="text" name="exp_org[]" value="<?= e($exp['organisation']) ?>" required placeholder="e.g. Acme Corporation"></div>
+                        <div class="fg" style="margin:0"><label style="font-size:11px">Job Title / Designation *</label>
+                            <input type="text" name="exp_title[]" value="<?= e($exp['job_title']) ?>" required placeholder="e.g. Senior Developer"></div>
+                        <div class="fg" style="margin:0"><label style="font-size:11px">Employment Type</label>
+                            <select name="exp_type[]">
+                                <?php foreach (['full_time'=>'Full-time','part_time'=>'Part-time','contract'=>'Contract','freelance'=>'Freelance','internship'=>'Internship','volunteer'=>'Volunteer'] as $v=>$l): ?>
+                                <option value="<?=$v?>" <?= ($exp['employment_type']??'')===$v?'selected':'' ?>><?=$l?></option>
+                                <?php endforeach; ?>
+                            </select></div>
+                        <div class="fg" style="margin:0"><label style="font-size:11px">Location</label>
+                            <input type="text" name="exp_location[]" value="<?= e($exp['location']??'') ?>" placeholder="e.g. Dhaka, Bangladesh"></div>
+                        <div class="fg" style="margin:0"><label style="font-size:11px">Start Date</label>
+                            <input type="date" name="exp_start[]" value="<?= e($exp['start_date']??'') ?>"></div>
+                        <div class="fg" style="margin:0"><label style="font-size:11px">End Date</label>
+                            <input type="date" name="exp_end[]" value="<?= e($exp['end_date']??'') ?>" <?= $exp['is_current']?'disabled':'' ?>></div>
+                        <div style="grid-column:span 2">
+                            <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;font-weight:500">
+                                <input type="checkbox" name="exp_current[]" value="1" <?= $exp['is_current']?'checked':'' ?>
+                                       onchange="toggleEndDate(this)">
+                                I currently work here
+                            </label>
+                        </div>
+                        <div class="fg" style="grid-column:span 2;margin:0"><label style="font-size:11px">Description / Responsibilities</label>
+                            <textarea name="exp_desc[]" rows="2" placeholder="Brief description of your role and achievements..."><?= e($exp['description']??'') ?></textarea></div>
+                    </div>
+                    <button type="button" class="repeat-del" onclick="this.closest('.repeat-item').remove()"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <?php endforeach; else: ?>
+                <div class="repeat-item" id="expRow0">
+                    <div class="item-fields" style="grid-template-columns:1fr 1fr">
+                        <div class="fg" style="margin:0"><label style="font-size:11px">Organisation / Company *</label>
+                            <input type="text" name="exp_org[]" required placeholder="e.g. Acme Corporation"></div>
+                        <div class="fg" style="margin:0"><label style="font-size:11px">Job Title / Designation *</label>
+                            <input type="text" name="exp_title[]" required placeholder="e.g. Senior Developer"></div>
+                        <div class="fg" style="margin:0"><label style="font-size:11px">Employment Type</label>
+                            <select name="exp_type[]">
+                                <option value="full_time">Full-time</option>
+                                <option value="part_time">Part-time</option>
+                                <option value="contract">Contract</option>
+                                <option value="freelance">Freelance</option>
+                                <option value="internship">Internship</option>
+                                <option value="volunteer">Volunteer</option>
+                            </select></div>
+                        <div class="fg" style="margin:0"><label style="font-size:11px">Location</label>
+                            <input type="text" name="exp_location[]" placeholder="e.g. Dhaka, Bangladesh"></div>
+                        <div class="fg" style="margin:0"><label style="font-size:11px">Start Date</label>
+                            <input type="date" name="exp_start[]"></div>
+                        <div class="fg" style="margin:0"><label style="font-size:11px">End Date</label>
+                            <input type="date" name="exp_end[]"></div>
+                        <div style="grid-column:span 2">
+                            <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;font-weight:500">
+                                <input type="checkbox" name="exp_current[]" value="1" onchange="toggleEndDate(this)">
+                                I currently work here
+                            </label>
+                        </div>
+                        <div class="fg" style="grid-column:span 2;margin:0"><label style="font-size:11px">Description / Responsibilities</label>
+                            <textarea name="exp_desc[]" rows="2" placeholder="Brief description of your role and achievements..."></textarea></div>
+                    </div>
+                    <button type="button" class="repeat-del" onclick="this.closest('.repeat-item').remove()"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <?php endif; ?>
+            </div>
+            <button type="button" class="add-row-btn" onclick="addExpRow()"><i class="fa-solid fa-plus"></i> Add Experience</button>
+            <div style="margin-top:20px">
+                <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> Save Experience</button>
+            </div>
+        </form>
+    </div>
+
     <?php elseif ($tab === 'social'): ?>
     <!-- ── SOCIAL LINKS ────────────────────────────────────────────────── -->
     <div class="pe-panel">
@@ -577,9 +687,12 @@ $countryCodes = [
                 'headline'          => ['CV Headline', 'Professional headline'],
                 'education'         => ['Education', 'Institutions and degrees'],
                 'grades'            => ['Grades / Results', 'Academic results'],
+                'experience'        => ['Work Experience', 'Job history and organisations'],
                 'social_links'      => ['Social Links', 'LinkedIn, GitHub, etc.'],
                 'relationship_status'=>['Relationship Status', 'Marital/relationship info'],
                 'expertise'         => ['Expertise / Skills', 'Skills and competencies'],
+                'languages'         => ['Languages', 'Languages you speak'],
+                'hobbies'           => ['Interests & Hobbies', 'Personal interests'],
                 'experience_years'  => ['Years of Experience', 'Total experience'],
                 'business'          => ['Business Association', 'Company / workplace'],
                 'designation'       => ['Designation', 'Job title / role'],
@@ -603,6 +716,516 @@ $countryCodes = [
             </div>
         </form>
     </div>
+
+    <?php elseif ($tab === 'security'): ?>
+    <!-- ── SECURITY ────────────────────────────────────────────────────── -->
+    <?php
+    $tfa2Enabled   = (bool)($user['two_fa_enabled'] ?? false);
+    $pwd2faMode    = isset($_GET['pwd_2fa']);
+    $verifyMethod  = $_GET['verify_method'] ?? null; // method being added
+    $setupTotp     = isset($_GET['setup_totp']);      // dedicated TOTP setup panel
+    $methodDefs = [
+        'email'    => ['label'=>'Email OTP',         'icon'=>'fa-envelope',            'desc'=>'A code sent to your email address'],
+        'whatsapp' => ['label'=>'WhatsApp OTP',       'icon'=>'fa-brands fa-whatsapp',  'desc'=>'A code sent to your WhatsApp number'],
+        'app'      => ['label'=>'Authenticator App',  'icon'=>'fa-mobile-screen-button','desc'=>'Google/Microsoft Authenticator'],
+    ];
+    ?>
+
+    <!-- Password confirmation notice -->
+    <div style="background:rgba(26,107,74,.06);border:1px solid rgba(26,107,74,.2);border-radius:10px;padding:12px 16px;margin-bottom:20px;display:flex;align-items:center;gap:10px;font-size:13px;color:var(--text)">
+        <i class="fa-solid fa-circle-info" style="color:var(--brand);font-size:16px;flex-shrink:0"></i>
+        <span>All security changes require your <strong>current password</strong> to confirm. Some actions also require a 2FA code if enabled.</span>
+    </div>
+
+    <!-- Change Password -->
+    <div class="pe-panel">
+        <h2><i class="fa-solid fa-lock" style="color:var(--brand);margin-right:8px"></i>Change Password</h2>
+        <p class="panel-desc">Keep your account safe with a strong, unique password.</p>
+
+        <?php if ($pwd2faMode): ?>
+        <!-- Step 2: Confirm with 2FA code -->
+        <div style="background:rgba(26,107,74,.06);border:1px solid rgba(26,107,74,.2);border-radius:10px;padding:14px 16px;margin-bottom:16px;font-size:13px">
+            <strong>Password verified.</strong> Enter your 2FA code below to complete the change.
+        </div>
+        <form method="POST" action="/profile/change-password/2fa">
+            <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
+            <div class="fg">
+                <label>2FA Code <span class="hint">From your authenticator app or email/WhatsApp</span></label>
+                <input type="text" name="tfa_code" inputmode="numeric" maxlength="6" placeholder="000000" autofocus style="font-size:20px;font-weight:700;letter-spacing:6px;text-align:center">
+            </div>
+            <button type="submit" class="btn btn-primary"><i class="fa-solid fa-shield-check"></i> Confirm Password Change</button>
+        </form>
+        <?php else: ?>
+        <form method="POST" action="/profile/change-password">
+            <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
+            <div class="fg">
+                <label>Current Password</label>
+                <div style="position:relative">
+                    <input type="password" name="current_password" id="pwdCurrent" required placeholder="Enter your current password" style="padding-right:42px">
+                    <button type="button" onclick="togglePwd('pwdCurrent',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:14px"><i class="fa-solid fa-eye"></i></button>
+                </div>
+            </div>
+            <div class="fg-row">
+                <div class="fg">
+                    <label>New Password <span class="hint">Min 8 characters</span></label>
+                    <div style="position:relative">
+                        <input type="password" name="new_password" id="pwdNew" required placeholder="New password" minlength="8" oninput="checkPwdStrength(this.value)" style="padding-right:42px">
+                        <button type="button" onclick="togglePwd('pwdNew',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:14px"><i class="fa-solid fa-eye"></i></button>
+                    </div>
+                    <div id="pwdStrengthBar" style="height:4px;border-radius:2px;margin-top:6px;background:#eee;overflow:hidden">
+                        <div id="pwdStrengthFill" style="height:100%;width:0;transition:width .3s,background .3s;border-radius:2px"></div>
+                    </div>
+                    <div id="pwdStrengthLabel" style="font-size:11px;color:var(--text-muted);margin-top:3px"></div>
+                </div>
+                <div class="fg">
+                    <label>Confirm New Password</label>
+                    <div style="position:relative">
+                        <input type="password" name="confirm_password" id="pwdConfirm" required placeholder="Repeat new password" style="padding-right:42px">
+                        <button type="button" onclick="togglePwd('pwdConfirm',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:14px"><i class="fa-solid fa-eye"></i></button>
+                    </div>
+                </div>
+            </div>
+            <?php if ($tfa2Enabled): ?>
+            <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:14px;font-size:12px;color:var(--text-muted)">
+                <i class="fa-solid fa-shield-halved" style="color:var(--brand)"></i>
+                Since 2FA is enabled, you'll be asked to enter a 2FA code after submitting.
+            </div>
+            <?php endif; ?>
+            <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:16px;font-size:12px;color:var(--text-muted)">
+                <strong style="color:var(--text)">Tips:</strong> Use 12+ characters · Mix uppercase, lowercase, numbers, symbols
+            </div>
+            <button type="submit" class="btn btn-primary"><i class="fa-solid fa-key"></i> Update Password</button>
+        </form>
+        <?php endif; ?>
+    </div>
+
+    <!-- Two-Factor Authentication -->
+    <div class="pe-panel">
+        <h2><i class="fa-solid fa-shield-halved" style="color:var(--brand);margin-right:8px"></i>Two-Factor Authentication</h2>
+        <p class="panel-desc">You can enable multiple 2FA methods. During login, you'll choose which one to use.</p>
+
+        <!-- Status overview -->
+        <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--bg);border:1px solid var(--border);border-radius:10px;margin-bottom:20px">
+            <i class="fa-solid <?= $tfa2Enabled ? 'fa-shield-check' : 'fa-shield-xmark' ?>" style="font-size:22px;color:<?= $tfa2Enabled ? 'var(--brand)' : '#ef4444' ?>"></i>
+            <div style="flex:1">
+                <strong style="font-size:14px;color:var(--text)">2FA is <?= $tfa2Enabled ? 'Enabled' : 'Disabled' ?></strong>
+                <?php if ($tfa2Enabled && !empty($activeMethods)): ?>
+                <div style="font-size:12px;color:var(--text-muted);margin-top:2px">
+                    Active methods: <?= implode(', ', array_map(fn($m) => $methodDefs[$m]['label'] ?? ucfirst($m), array_keys($activeMethods))) ?>
+                </div>
+                <?php endif; ?>
+            </div>
+            <span class="security-badge <?= $tfa2Enabled ? 'badge-on' : 'badge-off' ?>"><?= $tfa2Enabled ? '✓ Active' : '✗ Off' ?></span>
+        </div>
+
+        <!-- Method cards: show add/remove per method -->
+        <h3 style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:12px">2FA Methods</h3>
+        <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px">
+        <?php foreach ($methodDefs as $mKey => $mDef):
+            $isEnabled = isset($activeMethods[$mKey]);
+        ?>
+        <div style="border:1.5px solid <?= $isEnabled ? 'var(--brand)' : 'var(--border)' ?>;border-radius:10px;padding:14px 16px;background:<?= $isEnabled ? 'rgba(26,107,74,.04)' : 'var(--bg)' ?>">
+            <div style="display:flex;align-items:center;gap:12px">
+                <div style="width:38px;height:38px;border-radius:9px;background:<?= $isEnabled ? 'var(--brand)' : 'var(--card-bg)' ?>;border:1px solid <?= $isEnabled ? 'var(--brand)' : 'var(--border)' ?>;display:flex;align-items:center;justify-content:center;font-size:16px;color:<?= $isEnabled ? '#fff' : 'var(--text-muted)' ?>;flex-shrink:0">
+                    <i class="fa-solid <?= $mDef['icon'] ?>"></i>
+                </div>
+                <div style="flex:1">
+                    <div style="font-size:13px;font-weight:700;color:var(--text)"><?= $mDef['label'] ?>
+                        <?php if ($isEnabled): ?><span class="security-badge badge-on" style="margin-left:6px">✓ Active</span><?php endif; ?>
+                    </div>
+                    <div style="font-size:12px;color:var(--text-muted);margin-top:1px"><?= $mDef['desc'] ?></div>
+                </div>
+                <?php if ($isEnabled): ?>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="openRemoveModal('<?= $mKey ?>', '<?= e($mDef['label']) ?>')">
+                    <i class="fa-solid fa-xmark"></i> Remove
+                </button>
+                <?php if ($mKey === 'app'): ?>
+                <a href="?tab=security&setup_totp=1" class="btn btn-secondary btn-sm" style="margin-left:4px;text-decoration:none">
+                    <i class="fa-solid fa-qrcode"></i> View QR
+                </a>
+                <?php endif; ?>
+                <?php else: ?>
+                <?php if ($mKey === 'app'): ?>
+                <a href="?tab=security&setup_totp=1" class="btn btn-primary btn-sm" style="text-decoration:none">
+                    <i class="fa-solid fa-qrcode"></i> Set Up
+                </a>
+                <?php else: ?>
+                <button type="button" class="btn btn-primary btn-sm" onclick="openAddModal('<?= $mKey ?>', '<?= e($mDef['label']) ?>')">
+                    <i class="fa-solid fa-plus"></i> Enable
+                </button>
+                <?php endif; ?>
+                <?php endif; ?>
+            </div>
+
+            <?php if ($verifyMethod === $mKey && $mKey !== 'app'): ?>
+            <!-- OTP verification form for email/whatsapp enable -->
+            <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
+                <div style="font-size:13px;color:var(--text-muted);margin-bottom:10px">
+                    <i class="fa-solid fa-circle-info" style="color:var(--brand)"></i>
+                    A code was sent to your <?= $mKey === 'email' ? 'email' : 'WhatsApp' ?>. Enter it below to enable this method.
+                </div>
+                <form method="POST" action="/profile/security/2fa" style="display:flex;gap:8px;align-items:flex-end">
+                    <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
+                    <input type="hidden" name="action" value="add_method">
+                    <input type="hidden" name="two_fa_method" value="<?= e($mKey) ?>">
+                    <input type="hidden" name="confirm_password" value="<?= e($_GET['confirm_password'] ?? '') ?>">
+                    <div class="fg" style="margin:0;flex:1">
+                        <label style="font-size:12px">Enter OTP Code</label>
+                        <input type="text" name="otp_code" inputmode="numeric" maxlength="6" placeholder="000000" autofocus style="font-size:18px;font-weight:700;letter-spacing:4px;text-align:center">
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="white-space:nowrap"><i class="fa-solid fa-check"></i> Verify &amp; Enable</button>
+                </form>
+            </div>
+            <?php endif; ?>
+        </div>
+        <?php endforeach; ?>
+        </div>
+
+        <!-- ── Dedicated TOTP Setup Panel ─────────────────────────────────── -->
+        <?php if ($setupTotp): ?>
+        <div class="pe-panel" style="border-color:var(--brand);background:rgba(26,107,74,.03)" id="totpSetupPanel">
+            <h2><i class="fa-solid fa-qrcode" style="color:var(--brand);margin-right:8px"></i>Set Up Authenticator App</h2>
+            <p class="panel-desc">Use Google Authenticator, Microsoft Authenticator, Authy, or any TOTP-compatible app.</p>
+
+            <div style="display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap;margin-bottom:20px">
+                <!-- QR Code -->
+                <div style="text-align:center;flex-shrink:0">
+                    <div id="qrSpinner" style="width:180px;height:180px;border:2px dashed var(--border);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--text-muted)">Loading…</div>
+                    <img id="totpQrFull" src="" alt="QR Code" style="display:none;width:180px;height:180px;border-radius:12px;border:2px solid var(--brand)">
+                    <div style="font-size:11px;color:var(--text-muted);margin-top:6px">Step 1 — Scan this QR code</div>
+                </div>
+
+                <!-- Manual entry + instructions -->
+                <div style="flex:1;min-width:220px">
+                    <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:6px">Can't scan? Enter this key manually:</div>
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+                        <code id="totpSecretFull" style="flex:1;font-size:13px;font-weight:700;letter-spacing:2px;background:#f3f4f6;border:1px solid var(--border);padding:8px 12px;border-radius:8px;word-break:break-all;color:#111">Loading…</code>
+                        <button type="button" onclick="copySecret()" style="flex-shrink:0;padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg);cursor:pointer;font-size:12px;color:var(--text)" title="Copy secret">
+                            <i class="fa-solid fa-copy" id="copyIcon"></i>
+                        </button>
+                    </div>
+                    <ol style="font-size:13px;color:var(--text-muted);padding-left:18px;line-height:1.8;margin:0 0 16px">
+                        <li>Open your authenticator app</li>
+                        <li>Tap <strong>+</strong> or <strong>Add account</strong></li>
+                        <li>Scan the QR code <em>or</em> choose "Enter key manually"</li>
+                        <li>Enter the 6-digit code shown in the app below</li>
+                    </ol>
+                    <div style="font-size:12px;color:var(--text-muted)">Account name: <strong><?= e($user['email'] ?? 'your account') ?></strong><br>Issuer: <strong>Byabsayee</strong></div>
+                </div>
+            </div>
+
+            <!-- Verify & Enable form -->
+            <div style="border-top:1px solid var(--border);padding-top:18px">
+                <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:12px">Step 2 — Verify the code, then confirm with your password</div>
+                <form method="POST" action="/profile/security/2fa" id="totpVerifyForm">
+                    <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
+                    <input type="hidden" name="action" value="add_method">
+                    <input type="hidden" name="two_fa_method" value="app">
+                    <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
+                        <div class="fg" style="margin:0;flex:1;min-width:140px">
+                            <label style="font-size:12px;font-weight:600;display:block;margin-bottom:5px">6-digit code from your app</label>
+                            <input type="text" name="totp_code" id="totpCodeInput" inputmode="numeric" maxlength="6" placeholder="000000" autofocus
+                                   style="width:100%;padding:10px 14px;border:2px solid var(--border);border-radius:10px;font-size:22px;font-weight:700;letter-spacing:6px;text-align:center;background:#fff;color:#111">
+                        </div>
+                        <div class="fg" style="margin:0;flex:1;min-width:160px">
+                            <label style="font-size:12px;font-weight:600;display:block;margin-bottom:5px">Your current password</label>
+                            <input type="password" name="confirm_password" placeholder="Enter password"
+                                   style="width:100%;padding:10px 14px;border:2px solid var(--border);border-radius:10px;font-size:14px;background:#fff;color:#111">
+                        </div>
+                        <button type="submit" class="btn btn-primary" style="white-space:nowrap;padding:11px 20px">
+                            <i class="fa-solid fa-shield-check"></i> Enable Authenticator
+                        </button>
+                    </div>
+                </form>
+                <div style="margin-top:10px">
+                    <a href="?tab=security" style="font-size:13px;color:var(--text-muted);text-decoration:none">
+                        <i class="fa-solid fa-arrow-left" style="font-size:11px"></i> Cancel
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <script>
+        // Load QR and secret for the setup panel
+        fetch('/profile/security/totp-setup')
+            .then(r => r.json())
+            .then(d => {
+                document.getElementById('qrSpinner').style.display = 'none';
+                if (d.qr_data_uri) {
+                    const img = document.getElementById('totpQrFull');
+                    img.src = d.qr_data_uri;
+                    img.style.display = 'block';
+                } else if (d.uri) {
+                    // Fallback: show link if image fails
+                    document.getElementById('qrSpinner').innerHTML = '<a href="' + d.uri + '" style="color:var(--brand);font-size:12px">Open in authenticator app</a>';
+                    document.getElementById('qrSpinner').style.display = 'flex';
+                }
+                if (d.secret) {
+                    document.getElementById('totpSecretFull').textContent = d.secret;
+                    document.getElementById('totpSecretFull').dataset.secret = d.secret;
+                }
+                // Auto-focus code input
+                document.getElementById('totpCodeInput').focus();
+            })
+            .catch(() => {
+                document.getElementById('qrSpinner').innerHTML = '⚠ Could not load QR';
+            });
+
+        function copySecret() {
+            const secret = document.getElementById('totpSecretFull').dataset.secret || document.getElementById('totpSecretFull').textContent;
+            navigator.clipboard.writeText(secret).then(() => {
+                const icon = document.getElementById('copyIcon');
+                icon.className = 'fa-solid fa-check';
+                setTimeout(() => icon.className = 'fa-solid fa-copy', 2000);
+            });
+        }
+
+        // Auto-advance: when 6 digits entered, focus password field
+        document.getElementById('totpCodeInput').addEventListener('input', function() {
+            this.value = this.value.replace(/\D/g,'').slice(0,6);
+            if (this.value.length === 6) {
+                const pwdField = document.querySelector('#totpVerifyForm input[name="confirm_password"]');
+                if (pwdField && !pwdField.value) pwdField.focus();
+            }
+        });
+        </script>
+        <?php endif; ?>
+
+
+        <?php if ($tfa2Enabled): ?>
+        <!-- Disable all button -->
+        <form method="POST" action="/profile/security/2fa" id="disableAllForm">
+            <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
+            <input type="hidden" name="action" value="disable_all">
+            <input type="hidden" name="confirm_password" id="disableAllPwd">
+            <button type="button" class="btn btn-secondary" onclick="openDisableAllModal()" style="border-color:rgba(239,68,68,.4);color:#ef4444">
+                <i class="fa-solid fa-shield-xmark"></i> Disable All 2FA
+            </button>
+        </form>
+        <?php endif; ?>
+    </div>
+
+    <!-- Active Sessions -->
+    <div class="pe-panel">
+        <h2><i class="fa-solid fa-desktop" style="color:var(--brand);margin-right:8px"></i>Active Sessions</h2>
+        <p class="panel-desc">Devices and browsers signed into your account. The current session is highlighted.</p>
+
+        <?php
+        $currentSessId = session_id();
+        $hasOther = false;
+        foreach ($sessions as $sess) { if ($sess['session_id'] !== $currentSessId) { $hasOther = true; break; } }
+        ?>
+
+        <?php if (empty($sessions)): ?>
+        <div style="font-size:13px;color:var(--text-muted);padding:12px 0">Only your current session is active.</div>
+        <?php else: ?>
+        <?php foreach ($sessions as $sess):
+            $isCurrent = ($sess['session_id'] === $currentSessId);
+            $ua = $sess['user_agent'] ?? 'Unknown browser';
+            // Parse device type from UA
+            $deviceIcon = 'fa-desktop';
+            if (preg_match('/Mobile|Android|iPhone|iPad/i', $ua)) $deviceIcon = 'fa-mobile-screen-button';
+            elseif (preg_match('/Tablet/i', $ua)) $deviceIcon = 'fa-tablet-screen-button';
+            // Shorten UA
+            $uaShort = $ua;
+            if (preg_match('/Chrome\/[\d.]+/', $ua, $m)) $uaShort = 'Chrome ' . explode('/', $m[0])[1];
+            elseif (preg_match('/Firefox\/[\d.]+/', $ua, $m)) $uaShort = 'Firefox ' . explode('/', $m[0])[1];
+            elseif (preg_match('/Safari\/[\d.]+/', $ua, $m) && !str_contains($ua,'Chrome')) $uaShort = 'Safari';
+            elseif (preg_match('/Edg\/[\d.]+/', $ua, $m)) $uaShort = 'Edge ' . explode('/', $m[0])[1];
+            $lastActive = !empty($sess['last_active_at']) ? date('d M Y, H:i', strtotime($sess['last_active_at'])) : 'Unknown';
+        ?>
+        <div class="session-item">
+            <div class="session-icon <?= $isCurrent ? 'session-current' : '' ?>">
+                <i class="fa-solid <?= $deviceIcon ?>"></i>
+            </div>
+            <div style="flex:1">
+                <strong style="font-size:13px;color:var(--text)"><?= e($uaShort) ?><?= $isCurrent ? ' <span style="color:var(--brand);font-size:11px;font-weight:700">● You</span>' : '' ?></strong>
+                <div style="font-size:12px;color:var(--text-muted);margin-top:1px">
+                    IP: <?= e($sess['ip_address'] ?? '—') ?> &nbsp;·&nbsp; Last active: <?= $lastActive ?>
+                </div>
+            </div>
+            <?php if ($isCurrent): ?>
+            <span style="font-size:11px;background:rgba(26,107,74,.1);color:var(--brand);padding:3px 8px;border-radius:20px;font-weight:700">Current</span>
+            <?php else: ?>
+            <form method="POST" action="/profile/security/sessions/revoke" style="margin:0">
+                <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
+                <input type="hidden" name="session_db_id" value="<?= (int)($sess['id'] ?? 0) ?>">
+                <button type="submit" class="btn btn-sm" style="background:none;border:1px solid #e5e7eb;color:#ef4444;padding:4px 10px;font-size:12px;border-radius:8px;cursor:pointer"
+                        onclick="return confirm('Sign out this session?')">
+                    <i class="fa-solid fa-right-from-bracket"></i> Sign out
+                </button>
+            </form>
+            <?php endif; ?>
+        </div>
+        <?php endforeach; ?>
+        <?php endif; ?>
+
+        <?php if ($hasOther): ?>
+        <div style="margin-top:16px">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="openSessionsModal()">
+                <i class="fa-solid fa-right-from-bracket"></i> Sign Out All Other Sessions
+            </button>
+        </div>
+        <?php endif; ?>
+    </div>
+
+    <!-- Danger Zone -->
+    <div class="pe-panel" style="border-color:rgba(239,68,68,.3)">
+        <h2 style="color:#ef4444"><i class="fa-solid fa-triangle-exclamation" style="margin-right:8px"></i>Danger Zone</h2>
+        <p class="panel-desc">Irreversible account actions. Proceed with caution.</p>
+        <div style="background:rgba(239,68,68,.05);border:1px solid rgba(239,68,68,.2);border-radius:10px;padding:16px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+            <div>
+                <strong style="font-size:14px;color:#ef4444">Delete My Account</strong>
+                <div style="font-size:12px;color:var(--text-muted);margin-top:3px">Permanently remove your account and all data. Cannot be undone.</div>
+            </div>
+            <button type="button" class="btn btn-sm" style="background:#ef4444;color:#fff;border:none;white-space:nowrap"
+                    onclick="if(confirm('Are you absolutely sure? This cannot be undone.')) window.location='/profile/security/delete-account'">
+                <i class="fa-solid fa-trash"></i> Delete Account
+            </button>
+        </div>
+    </div>
+
+    <!-- ── Password-gate modals ──────────────────────────────────────── -->
+    <style>
+    .sec-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55) !important;z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px}
+    .sec-modal{background:#ffffff;border-radius:16px;padding:28px;width:100%;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+    .dark .sec-modal,[data-theme="dark"] .sec-modal{background:#1e2530}
+    .sec-modal h3{font-size:16px;font-weight:700;margin:0 0 6px;color:var(--text,#111)}
+    .sec-modal p{font-size:13px;color:var(--text-muted,#666);margin:0 0 18px;line-height:1.5}
+    .sec-modal .fg{margin-bottom:14px}
+    .sec-modal .btn-row{display:flex;gap:10px;justify-content:flex-end}
+    .sec-modal input[type="password"],.sec-modal input[type="text"]{background:#f9fafb;color:#111;border:1px solid #d1d5db}
+    .dark .sec-modal input[type="password"],.dark .sec-modal input[type="text"],[data-theme="dark"] .sec-modal input{background:#2a3240;color:#e5e7eb;border-color:#374151}
+    </style>
+
+    <!-- Add 2FA method modal -->
+    <div class="sec-modal-overlay" id="addMethodModal" style="display:none">
+        <div class="sec-modal">
+            <h3 id="addModalTitle">Enable 2FA Method</h3>
+            <p>Enter your current password to confirm.</p>
+            <form method="POST" action="/profile/security/2fa" id="addMethodForm">
+                <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
+                <input type="hidden" name="action" value="add_method">
+                <input type="hidden" name="two_fa_method" id="addMethodInput">
+                <div class="fg">
+                    <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px">Current Password</label>
+                    <input type="password" name="confirm_password" id="addMethodPwd" placeholder="Enter your password" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--input-bg,var(--bg));color:var(--text)" required>
+                </div>
+                <!-- TOTP code field (for app method) -->
+                <div class="fg" id="totpCodeField" style="display:none">
+                    <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px">Authenticator Code</label>
+                    <input type="text" name="totp_code" inputmode="numeric" maxlength="6" placeholder="000000" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:18px;font-weight:700;letter-spacing:4px;text-align:center;background:var(--input-bg,var(--bg));color:var(--text)">
+                    <div id="totpQrArea" style="margin-top:12px;text-align:center;display:none">
+                        <img id="modalTotpQr" src="" style="width:140px;height:140px;border-radius:8px;border:1px solid var(--border)">
+                        <div style="font-size:11px;color:var(--text-muted);margin-top:6px">Scan with your authenticator app</div>
+                        <code id="modalTotpSecret" style="font-size:10px;display:block;margin-top:4px;color:var(--brand)"></code>
+                    </div>
+                </div>
+                <div class="btn-row">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('addMethodModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Continue</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Remove 2FA method modal -->
+    <div class="sec-modal-overlay" id="removeMethodModal" style="display:none">
+        <div class="sec-modal">
+            <h3 id="removeModalTitle">Remove 2FA Method</h3>
+            <p id="removeModalDesc">Enter your current password to remove this method.</p>
+            <form method="POST" action="/profile/security/2fa" id="removeMethodForm">
+                <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
+                <input type="hidden" name="action" value="remove_method">
+                <input type="hidden" name="two_fa_method" id="removeMethodInput">
+                <div class="fg">
+                    <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px">Current Password</label>
+                    <input type="password" name="confirm_password" placeholder="Enter your password" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--input-bg,var(--bg));color:var(--text)" required>
+                </div>
+                <div class="btn-row">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('removeMethodModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary" style="background:#ef4444">Remove</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Disable all 2FA modal -->
+    <div class="sec-modal-overlay" id="disableAllModal" style="display:none">
+        <div class="sec-modal">
+            <h3>Disable All 2FA</h3>
+            <p>This will remove all 2FA methods and make your account less secure. Enter your password to confirm.</p>
+            <div class="fg">
+                <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px">Current Password</label>
+                <input type="password" id="disableAllPwdInput" placeholder="Enter your password" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--input-bg,var(--bg));color:var(--text)" required>
+            </div>
+            <div class="btn-row">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('disableAllModal')">Cancel</button>
+                <button type="button" class="btn btn-primary" style="background:#ef4444" onclick="submitDisableAll()">Disable All</button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Sign out sessions modal -->
+    <div class="sec-modal-overlay" id="sessionsModal" style="display:none">
+        <div class="sec-modal">
+            <h3>Sign Out Other Sessions</h3>
+            <p>This will sign out all other devices. Enter your password to confirm.</p>
+            <form method="POST" action="/profile/security/sessions">
+                <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
+                <input type="hidden" name="action" value="logout_all">
+                <div class="fg">
+                    <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px">Current Password</label>
+                    <input type="password" name="confirm_password" placeholder="Enter your password" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--input-bg,var(--bg));color:var(--text)" required>
+                </div>
+                <div class="btn-row">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('sessionsModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Sign Out Others</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+    function closeModal(id) { document.getElementById(id).style.display='none'; }
+    document.querySelectorAll('.sec-modal-overlay').forEach(m => {
+        m.addEventListener('click', e => { if(e.target===m) m.style.display='none'; });
+    });
+    function openAddModal(method, label) {
+        // 'app' method now uses a dedicated page-based setup panel (?setup_totp=1)
+        // This modal is only used for email/whatsapp methods
+        document.getElementById('addModalTitle').textContent = 'Enable ' + label;
+        document.getElementById('addMethodInput').value = method;
+        document.getElementById('addMethodPwd').value = '';
+        const totpField = document.getElementById('totpCodeField');
+        const totpQrArea = document.getElementById('totpQrArea');
+        if (totpField) totpField.style.display = 'none';
+        document.getElementById('addMethodModal').style.display = 'flex';
+        setTimeout(() => document.getElementById('addMethodPwd').focus(), 100);
+    }
+    function openRemoveModal(method, label) {
+        document.getElementById('removeModalTitle').textContent = 'Remove ' + label;
+        document.getElementById('removeModalDesc').textContent = 'Enter your password to remove ' + label + ' from your 2FA methods.';
+        document.getElementById('removeMethodInput').value = method;
+        document.getElementById('removeMethodModal').style.display = 'flex';
+    }
+    function openDisableAllModal() {
+        document.getElementById('disableAllPwdInput').value = '';
+        document.getElementById('disableAllModal').style.display = 'flex';
+        setTimeout(() => document.getElementById('disableAllPwdInput').focus(), 100);
+    }
+    function submitDisableAll() {
+        const pwd = document.getElementById('disableAllPwdInput').value;
+        if (!pwd) { document.getElementById('disableAllPwdInput').focus(); return; }
+        document.getElementById('disableAllPwd').value = pwd;
+        document.getElementById('disableAllForm').submit();
+    }
+    function openSessionsModal() {
+        document.getElementById('sessionsModal').style.display = 'flex';
+    }
+    </script>
+
     <?php endif; ?>
 
     </div><!-- /.pe-body -->
@@ -661,6 +1284,31 @@ function addGradeRow() {
     <button type="button" class="repeat-del" onclick="this.closest('.repeat-item').remove()"><i class="fa-solid fa-xmark"></i></button>`;
     list.appendChild(div);
 }
+function addExpRow() {
+    const list = document.getElementById('expList');
+    const div = document.createElement('div');
+    div.className = 'repeat-item';
+    div.innerHTML = `<div class="item-fields" style="grid-template-columns:1fr 1fr">
+        <div class="fg" style="margin:0"><label style="font-size:11px">Organisation / Company *</label><input type="text" name="exp_org[]" required placeholder="e.g. Acme Corporation"></div>
+        <div class="fg" style="margin:0"><label style="font-size:11px">Job Title / Designation *</label><input type="text" name="exp_title[]" required placeholder="e.g. Senior Developer"></div>
+        <div class="fg" style="margin:0"><label style="font-size:11px">Employment Type</label>
+            <select name="exp_type[]"><option value="full_time">Full-time</option><option value="part_time">Part-time</option><option value="contract">Contract</option><option value="freelance">Freelance</option><option value="internship">Internship</option><option value="volunteer">Volunteer</option></select></div>
+        <div class="fg" style="margin:0"><label style="font-size:11px">Location</label><input type="text" name="exp_location[]" placeholder="e.g. Dhaka, Bangladesh"></div>
+        <div class="fg" style="margin:0"><label style="font-size:11px">Start Date</label><input type="date" name="exp_start[]"></div>
+        <div class="fg" style="margin:0"><label style="font-size:11px">End Date</label><input type="date" name="exp_end[]" class="exp-end-input"></div>
+        <div style="grid-column:span 2"><label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;font-weight:500">
+            <input type="checkbox" name="exp_current[]" value="1" onchange="toggleEndDate(this)"> I currently work here
+        </label></div>
+        <div class="fg" style="grid-column:span 2;margin:0"><label style="font-size:11px">Description / Responsibilities</label>
+            <textarea name="exp_desc[]" rows="2" placeholder="Brief description of your role and achievements..."></textarea></div>
+    </div>
+    <button type="button" class="repeat-del" onclick="this.closest('.repeat-item').remove()"><i class="fa-solid fa-xmark"></i></button>`;
+    list.appendChild(div);
+}
+function toggleEndDate(cb) {
+    const endInput = cb.closest('.item-fields').querySelector('input[name="exp_end[]"]');
+    if (endInput) { endInput.disabled = cb.checked; if (cb.checked) endInput.value = ''; }
+}
 const platformIcons = <?= json_encode($platformIcons) ?>;
 function addSocialRow() {
     const list = document.getElementById('socialList');
@@ -679,6 +1327,43 @@ function updateSocialIcon(sel) {
     const icon = platformIcons[sel.value] || 'fa-link';
     const el = sel.closest('.social-platform-row').querySelector('.social-platform-icon i');
     if (el) el.className = 'fa-brands ' + icon;
+}
+function togglePwd(id, btn) {
+    const inp = document.getElementById(id);
+    if (!inp) return;
+    const show = inp.type === 'password';
+    inp.type = show ? 'text' : 'password';
+    btn.querySelector('i').className = show ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye';
+}
+function checkPwdStrength(val) {
+    const fill = document.getElementById('pwdStrengthFill');
+    const label = document.getElementById('pwdStrengthLabel');
+    if (!fill || !label) return;
+    let score = 0;
+    if (val.length >= 8) score++;
+    if (val.length >= 12) score++;
+    if (/[A-Z]/.test(val) && /[a-z]/.test(val)) score++;
+    if (/[0-9]/.test(val)) score++;
+    if (/[^A-Za-z0-9]/.test(val)) score++;
+    const levels = [
+        {w:'0%', c:'#ef4444', t:''},
+        {w:'20%',c:'#ef4444',t:'Very weak'},
+        {w:'40%',c:'#f97316',t:'Weak'},
+        {w:'60%',c:'#eab308',t:'Fair'},
+        {w:'80%',c:'#22c55e',t:'Strong'},
+        {w:'100%',c:'#16a34a',t:'Very strong'},
+    ];
+    const l = levels[Math.min(score,5)];
+    fill.style.width = l.w; fill.style.background = l.c;
+    label.textContent = l.t; label.style.color = l.c;
+}
+function selectTfaCard(radio) {
+    document.querySelectorAll('.tfa-method-card').forEach(c => {
+        const r = c.querySelector('input[type=radio]');
+        c.classList.toggle('selected', r && r.checked);
+        const icon = c.querySelector('.tmc-icon');
+        if (icon) { icon.style.background = r && r.checked ? 'var(--brand)' : ''; icon.style.borderColor = r && r.checked ? 'var(--brand)' : ''; icon.style.color = r && r.checked ? '#fff' : ''; }
+    });
 }
 </script>
 

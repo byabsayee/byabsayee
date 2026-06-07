@@ -89,6 +89,19 @@ class AuthController
             [now(), $user['id']]
         );
 
+        // --- Record session for active-sessions tracking ---
+        try {
+            $ua     = substr($_SERVER['HTTP_USER_AGENT'] ?? 'Unknown', 0, 255);
+            $ip     = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+            $sessId = session_id();
+            Database::run(
+                'INSERT INTO user_sessions (user_id, session_id, ip_address, user_agent, last_active_at)
+                 VALUES (?,?,?,?,NOW())
+                 ON DUPLICATE KEY UPDATE last_active_at=NOW(), ip_address=VALUES(ip_address)',
+                [$user['id'], $sessId, $ip, $ua]
+            );
+        } catch (\Throwable $e) { /* table may not exist yet */ }
+
         // --- Remember me: extend session lifetime ---
         if ($remember) {
             $token = generate_token();
@@ -101,10 +114,28 @@ class AuthController
 
         // --- 2FA gate ---
         if (!empty($user['two_fa_enabled'])) {
-            // Store pending user id, clear actual session user
-            $_SESSION['2fa_user_id'] = $user['id'];
-            unset($_SESSION['user']);
-            redirect('/2fa/challenge');
+            // Load all enabled methods for this user
+            $methods = [];
+            try {
+                $rows = Database::query(
+                    'SELECT method FROM user_2fa_methods WHERE user_id=? AND is_enabled=1',
+                    [$user['id']]
+                );
+                $methods = array_column($rows, 'method');
+            } catch (\Throwable $e) {}
+
+            // Fallback to legacy single-method column if new table returned nothing
+            if (empty($methods) && !empty($user['two_fa_method'])) {
+                $methods = [$user['two_fa_method']];
+            }
+
+            if (!empty($methods)) {
+                $_SESSION['2fa_user_id']       = $user['id'];
+                $_SESSION['2fa_methods']       = $methods;
+                $_SESSION['2fa_chosen_method'] = null;
+                unset($_SESSION['user']);
+                redirect('/2fa/challenge');
+            }
         }
 
         redirect('/books');
@@ -124,9 +155,17 @@ class AuthController
             setcookie('remember_token', '', time() - 3600, '/', '', true, true);
         }
 
-        // Destroy the session completely
-        $_SESSION = [];
+        // Remove session tracking row
+        try {
+            Database::run('DELETE FROM user_sessions WHERE session_id=?', [session_id()]);
+        } catch (\Throwable $e) {}
+
+        // Destroy and immediately restart a clean session so CSRF token
+        // is available on the login page (session_destroy wipes $_SESSION).
+        session_unset();
         session_destroy();
+        session_start();
+        $_SESSION['_csrf_token'] = bin2hex(random_bytes(32));
 
         redirect('/login', ['success' => 'You have been logged out.']);
     }

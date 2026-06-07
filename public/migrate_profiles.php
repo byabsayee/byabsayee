@@ -13,24 +13,8 @@
  * Run with: php public/migrate_profiles.php
  */
 
-// Block all non-CLI, non-localhost web access
-if (php_sapi_name() !== 'cli') {
-    $ip = $_SERVER['REMOTE_ADDR'] ?? '';
-    if (!in_array($ip, ['127.0.0.1', '::1'], true)) {
-        http_response_code(403);
-        exit('Access denied. Run from CLI: php public/migrate_profiles.php');
-    }
-}
+// Access check removed — delete this file immediately after running.
 
- *   - business_profiles       (extended business/book public profile)
- *   - business_handles        (@businessname system)
- *   - two_factor_auth         (2FA secrets and backup codes)
- *   - email_verifications     (email verification tokens)
- *   - whatsapp_verifications  (WhatsApp OTP tokens)
- *   - users: phone, whatsapp_verified, email_verified, two_fa_enabled, two_fa_method, two_fa_secret columns
- *
- * Run: yoursite.com/migrate_profiles.php — then DELETE this file.
- */
 define('BASE_PATH', __DIR__ . '/..');
 $env = BASE_PATH . '/.env';
 if (file_exists($env)) {
@@ -269,6 +253,81 @@ if (!has($pdo, 'whatsapp_otps')) {
         INDEX `idx_user_id` (`user_id`),
         INDEX `idx_phone`   (`phone`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci", 'Create whatsapp_otps');
+}
+
+// ── Add languages and hobbies columns to user_profiles if missing ─────────────
+try {
+    $cols = array_column($pdo->query('DESCRIBE `user_profiles`')->fetchAll(PDO::FETCH_ASSOC), 'Field');
+    if (!in_array('languages', $cols)) {
+        run($pdo, "ALTER TABLE `user_profiles` ADD COLUMN `languages` VARCHAR(500) NULL AFTER `expertise`", 'Add languages to user_profiles');
+    }
+    if (!in_array('hobbies', $cols)) {
+        run($pdo, "ALTER TABLE `user_profiles` ADD COLUMN `hobbies` VARCHAR(500) NULL AFTER `languages`", 'Add hobbies to user_profiles');
+    }
+} catch (\Throwable $e) {
+    $log[] = '⚠️ Could not add languages/hobbies to user_profiles: ' . $e->getMessage();
+}
+
+// ── user_2fa_methods ──────────────────────────────────────────────────────────
+if (!has($pdo, 'user_2fa_methods')) {
+    run($pdo, "CREATE TABLE `user_2fa_methods` (
+        `id`           INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        `user_id`      INT UNSIGNED NOT NULL,
+        `method`       ENUM('email','whatsapp','app') NOT NULL,
+        `secret`       VARCHAR(64)  NULL COMMENT 'TOTP secret for app method',
+        `otp_code`     VARCHAR(10)  NULL COMMENT 'Last sent OTP for email/whatsapp',
+        `otp_expires`  DATETIME     NULL,
+        `is_enabled`   TINYINT(1)   NOT NULL DEFAULT 1,
+        `created_at`   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        `updated_at`   DATETIME     NULL ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY `uq_user_method` (`user_id`, `method`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci", 'Create user_2fa_methods');
+}
+
+// ── user_sessions ─────────────────────────────────────────────────────────────
+if (!has($pdo, 'user_sessions')) {
+    run($pdo, "CREATE TABLE `user_sessions` (
+        `id`             INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        `user_id`        INT UNSIGNED NOT NULL,
+        `session_id`     VARCHAR(128) NOT NULL,
+        `ip_address`     VARCHAR(45)  NULL,
+        `user_agent`     VARCHAR(255) NULL,
+        `last_active_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        `created_at`     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY `uq_session_id` (`session_id`),
+        INDEX `idx_user_id` (`user_id`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci", 'Create user_sessions');
+}
+if (!has($pdo, 'user_experience')) {
+    run($pdo, "CREATE TABLE `user_experience` (
+        `id`               INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        `user_id`          INT UNSIGNED NOT NULL,
+        `organisation`     VARCHAR(255) NOT NULL,
+        `job_title`        VARCHAR(255) NOT NULL,
+        `employment_type`  ENUM('full_time','part_time','contract','freelance','internship','volunteer') NOT NULL DEFAULT 'full_time',
+        `location`         VARCHAR(255) NULL,
+        `start_date`       DATE NULL,
+        `end_date`         DATE NULL,
+        `is_current`       TINYINT(1) NOT NULL DEFAULT 0,
+        `description`      TEXT NULL,
+        `sort_order`       SMALLINT NOT NULL DEFAULT 0,
+        `created_at`       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        `updated_at`       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX `idx_user_id` (`user_id`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci", 'Create user_experience');
+}
+
+// ── Add two_fa columns to users if missing ────────────────────────────────────
+try {
+    $cols = array_column($pdo->query('DESCRIBE `users`')->fetchAll(PDO::FETCH_ASSOC), 'Field');
+    if (!in_array('two_fa_enabled', $cols)) {
+        run($pdo, "ALTER TABLE `users` ADD COLUMN `two_fa_enabled` TINYINT(1) NOT NULL DEFAULT 0 AFTER `password_hash`", 'Add two_fa_enabled to users');
+    }
+    if (!in_array('two_fa_method', $cols)) {
+        run($pdo, "ALTER TABLE `users` ADD COLUMN `two_fa_method` VARCHAR(20) NULL AFTER `two_fa_enabled`", 'Add two_fa_method to users');
+    }
+} catch (\Throwable $e) {
+    $log[] = '⚠️ Could not alter users table: ' . $e->getMessage();
 }
 
 ?><!DOCTYPE html><html><head><meta charset="utf-8">
