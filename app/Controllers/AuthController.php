@@ -383,14 +383,14 @@ class AuthController
     // =========================================================================
     private function sendPasswordResetEmail(string $email, string $name, string $token): void
     {
-        $link    = rtrim(getenv('APP_URL') ?: 'https://byabsayee.com', '/') . '/reset-password?token=' . urlencode($token);
+        $link    = rtrim(getenv('APP_URL') ?: 'https://web.byabsayee.com', '/') . '/reset-password?token=' . urlencode($token);
         $appName = getenv('APP_NAME') ?: 'Byabsayee';
         $subject = "[{$appName}] Reset your password";
         $html    = Mailer::render('password-reset', [
             'name'    => $name,
             'link'    => $link,
             'appName' => $appName,
-            'appUrl'  => rtrim(getenv('APP_URL') ?: 'https://byabsayee.com', '/'),
+            'appUrl'  => rtrim(getenv('APP_URL') ?: 'https://web.byabsayee.com', '/'),
         ]);
         $sent = Mailer::send($email, $subject, $html);
         if (!$sent) {

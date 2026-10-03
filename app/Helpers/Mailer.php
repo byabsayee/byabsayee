@@ -117,7 +117,7 @@ class Mailer
     /** Send an email verification link with a signed token */
     public static function sendVerificationLink(string $to, string $name, string $token, string $path = '/verify-email'): bool
     {
-        $url  = rtrim(getenv('APP_URL') ?: 'https://byabsayee.com', '/') . $path . '?token=' . urlencode($token);
+        $url  = rtrim(getenv('APP_URL') ?: 'https://web.byabsayee.com', '/') . $path . '?token=' . urlencode($token);
         $html = <<<HTML
 <!DOCTYPE html><html><head><meta charset="utf-8"></head>
 <body style="font-family:system-ui,sans-serif;background:#f5f5f5;padding:40px 20px">

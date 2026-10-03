@@ -12,7 +12,7 @@
  *   $userId       — logged-in user ID (for reference)
  */
 $appName = $appName ?? 'Byabsayee';
-$appUrl  = $appUrl  ?? (getenv('APP_URL') ?: 'https://byabsayee.com');
+$appUrl  = $appUrl  ?? (getenv('APP_URL') ?: 'https://web.byabsayee.com');
 $brand   = '#1a6b4a';
 ?>
 <!DOCTYPE html>

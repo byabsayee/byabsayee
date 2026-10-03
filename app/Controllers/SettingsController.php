@@ -156,7 +156,7 @@ class SettingsController
 
         $appName    = getenv('APP_NAME') ?: 'Byabsayee';
         $supportTo  = getenv('SUPPORT_EMAIL') ?: getenv('SMTP_FROM') ?: getenv('SMTP_USER') ?: '';
-        $appUrl     = rtrim(getenv('APP_URL') ?: 'https://byabsayee.com', '/');
+        $appUrl     = rtrim(getenv('APP_URL') ?: 'https://web.byabsayee.com', '/');
 
         // Build the support email
         $html = Mailer::render('contact-support', [

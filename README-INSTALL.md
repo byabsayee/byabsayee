@@ -4,7 +4,7 @@
 
 ## 1. Before you start
 - Back up the database.
-- Your Byabsayee must be reachable from the internet over **HTTPS** (the website calls it), and **APP_URL** must be that public address, e.g. `https://books.example.com` (not `http://IP:1021`).
+- Your Byabsayee must be reachable from the internet over **HTTPS** (the website calls it), and **APP_URL** must be that public address, e.g. `https://web.byabsayee.com` (not `http://IP:1021`).
 - The reverse proxy / tunnel in front of nginx must send `X-Forwarded-Proto: https` (Cloudflare Tunnel and Nginx Proxy Manager do by default).
 
 ## 2. Put the files in place

@@ -13,7 +13,7 @@
  */
 
 $appName  = $appName  ?? 'Byabsayee';
-$appUrl   = $appUrl   ?? (getenv('APP_URL') ?: 'https://byabsayee.com');
+$appUrl   = $appUrl   ?? (getenv('APP_URL') ?: 'https://web.byabsayee.com');
 $brand    = '#4F7CFF';
 $bg       = '#f4f6fb';
 ?>
