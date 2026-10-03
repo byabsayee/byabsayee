@@ -143,11 +143,11 @@ ob_start();
                 <?php if (!$c['expires_at']): ?>
                     <span style="color:var(--text-muted)"><i class="fa-solid fa-infinity" style="font-size:10px"></i> Permanent</span>
                 <?php elseif ($expired): ?>
-                    <span style="color:var(--red);font-weight:600"><i class="fa-solid fa-clock"></i> Expired <?= date('d M Y', strtotime($c['expires_at'])) ?></span>
+                    <span style="color:var(--red);font-weight:600"><i class="fa-solid fa-clock"></i> Expired <?= fmt_date($c['expires_at']) ?></span>
                 <?php elseif ($expiring): ?>
-                    <span style="color:#b45309;font-weight:600"><i class="fa-solid fa-triangle-exclamation"></i> <?= date('d M Y', strtotime($c['expires_at'])) ?></span>
+                    <span style="color:#b45309;font-weight:600"><i class="fa-solid fa-triangle-exclamation"></i> <?= fmt_date($c['expires_at']) ?></span>
                 <?php else: ?>
-                    <span><?= date('d M Y', strtotime($c['expires_at'])) ?></span>
+                    <span><?= fmt_date($c['expires_at']) ?></span>
                     <div style="font-size:11px;color:var(--text-muted)"><?= date('h:i A', strtotime($c['expires_at'])) ?></div>
                 <?php endif; ?>
             </td>

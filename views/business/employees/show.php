@@ -15,6 +15,7 @@ $moduleLabels = [
     'employees'     => ['label'=>'Employees',      'icon'=>'fa-id-badge'],
     'contacts'      => ['label'=>'Contacts',       'icon'=>'fa-address-book'],
     'coupons'       => ['label'=>'Coupons',        'icon'=>'fa-ticket'],
+    'integrations'  => ['label'=>'Online store',   'icon'=>'fa-link'],
     'returns'       => ['label'=>'Returns',        'icon'=>'fa-rotate-left'],
     'deliveries'    => ['label'=>'Deliveries',     'icon'=>'fa-truck-fast'],
     'reports'       => ['label'=>'Reports',        'icon'=>'fa-chart-line'],

@@ -27,6 +27,7 @@ class EmployeeController
             'products'            => ['view', 'create', 'edit', 'delete', 'adjust_stock'],
             'returns'             => ['view', 'create', 'delete'],
             'coupons'             => ['view', 'create', 'edit', 'delete'],
+            'integrations'        => ['view', 'manage'],
             'deliveries'          => ['view', 'create', 'edit', 'delete'],
             // ── Contacts ──────────────────────────────────────────────
             'customers'           => ['view', 'create', 'edit', 'delete'],

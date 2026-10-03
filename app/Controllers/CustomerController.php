@@ -113,6 +113,7 @@ class CustomerController
              now()]
         );
         $custId = Database::lastId();
+        \App\Services\Integration\Hooks::emit((int)$book['id'], 'customer', (int)$custId, 'create');
         ActivityLogger::write($book['id'], auth()['id'], 'customer.created', 'Customer', $custId,
             "Customer added — {$name}", null, ['name'=>$name]);
         redirect('/books/'.$book['id'].'/customers', ['success' => $name.' added.']);
@@ -141,6 +142,7 @@ class CustomerController
              trim($_POST['notes']   ?? '') ?: null,
              $customer['id']]
         );
+        \App\Services\Integration\Hooks::emit((int)$book['id'], 'customer', (int)$customer['id']);
         redirect('/books/'.$book['id'].'/customers/'.$customer['id'], ['success' => 'Customer updated.']);
     }
 
@@ -155,6 +157,7 @@ class CustomerController
         ActivityLogger::write($book['id'], auth()['id'], 'customer.deleted', 'Customer', (int)$customer['id'],
             "Customer deleted — {$customer['name']}", ['name'=>$customer['name']]);
         Database::run('UPDATE customers SET deleted_at=? WHERE id=?', [now(), $customer['id']]);
+        \App\Services\Integration\Hooks::emit((int)$book['id'], 'customer', (int)$customer['id'], 'archive');
         redirect('/books/'.$book['id'].'/customers', ['success' => $customer['name'].' deleted.']);
     }
 

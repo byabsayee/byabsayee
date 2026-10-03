@@ -104,6 +104,34 @@ function now(): string
     return date('Y-m-d H:i:s');
 }
 
+/**
+ * Format a date for on-screen display using the logged-in user's saved
+ * date_format preference (Settings → Preferences). Falls back to 'd M Y'
+ * for guests or if no value is stored yet.
+ * Accepts a date/datetime string, or a unix timestamp.
+ */
+function fmt_date($value, ?string $format = null): string
+{
+    if (empty($value)) return '';
+    $ts = is_numeric($value) ? (int)$value : strtotime((string)$value);
+    if ($ts === false || $ts === null) return '';
+    $format = $format ?? ($_SESSION['user']['date_format'] ?? 'd M Y');
+    return date($format, $ts);
+}
+
+/**
+ * Same as fmt_date() but appends a time portion — for "created at" / "updated at"
+ * style timestamps. Date part respects the user's preference; time stays h:i A.
+ */
+function fmt_datetime($value, string $timeFormat = 'h:i A'): string
+{
+    if (empty($value)) return '';
+    $ts = is_numeric($value) ? (int)$value : strtotime((string)$value);
+    if ($ts === false || $ts === null) return '';
+    $dateFormat = $_SESSION['user']['date_format'] ?? 'd M Y';
+    return date($dateFormat, $ts) . ', ' . date($timeFormat, $ts);
+}
+
 function set_timezone_from_cookie(): void
 {
     static $done = false;
@@ -135,7 +163,7 @@ function format_money(float $amount, string $symbol = '৳'): string
 
 function format_date(string $date): string
 {
-    return date('d M Y', strtotime($date));
+    return fmt_date($date);
 }
 
 function generate_token(int $bytes = 32): string

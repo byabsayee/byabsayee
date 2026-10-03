@@ -1,22 +1,28 @@
 <?php
 $pageTitle = 'App Settings';
-$tab = $tab ?? 'profile';
+$tab = $tab ?? 'preferences';
 $user = $user ?? auth();
 
-// Try to load preferences (may be stored as JSON if columns don't exist)
-$prefs = [];
-try {
-    $prefRow = Database::row('SELECT preferences FROM users WHERE id=?', [$user['id']]);
-    if (!empty($prefRow['preferences'])) $prefs = json_decode($prefRow['preferences'], true) ?? [];
-} catch (\Throwable $e) { $prefs = []; }
+$userTheme    = $user['theme']    ?? 'light';
+$userLang     = $user['language'] ?? 'en';
+$userTz       = $user['timezone'] ?? 'Asia/Dhaka';
+$userDateFmt  = $user['date_format']  ?? 'd M Y';
+$userCurrency = $user['default_currency'] ?? 'BDT';
+$userEmailNot = $user['email_notifications'] ?? 1;
+$user2fa      = $user['two_fa_enabled']    ?? 0;
 
-$userTheme    = $user['theme']    ?? $prefs['theme']    ?? 'light';
-$userLang     = $user['language'] ?? $prefs['language'] ?? 'en';
-$userTz       = $user['timezone'] ?? $prefs['timezone'] ?? 'Asia/Dhaka';
-$userDateFmt  = $user['date_format']  ?? $prefs['dateFormat']  ?? 'd M Y';
-$userCurrency = $user['default_currency'] ?? $prefs['currency'] ?? 'BDT';
-$userEmailNot = $user['email_notifications'] ?? $prefs['notifications'] ?? 1;
-$user2fa      = $user['two_fa_enabled']    ?? $prefs['twoFa']  ?? 0;
+// Old bookmarks/links may still point at the retired individual tabs — treat them as Preferences.
+if (in_array($tab, ['theme', 'language', 'timezone'], true)) $tab = 'preferences';
+
+$notifPrefs = [];
+if (!empty($user['notification_prefs'])) {
+    $notifPrefs = json_decode($user['notification_prefs'], true) ?? [];
+}
+$notifInvoiceReminders = $notifPrefs['invoice_reminders'] ?? 1;
+$notifLowStock         = $notifPrefs['low_stock_alerts']  ?? 1;
+$notifEmployeeJoined   = $notifPrefs['employee_joined']   ?? 1;
+$notifMonthlySummary   = $notifPrefs['monthly_summary']   ?? 0;
+$notifAppUpdates       = $notifPrefs['app_updates']       ?? 1;
 
 ob_start();
 ?>
@@ -93,9 +99,7 @@ ob_start();
     <!-- Sidebar Nav -->
     <nav class="settings-nav">        
         <div class="nav-group-label">App</div>
-        <a href="/settings?tab=theme"        class="<?= $tab==='theme'?'active':'' ?>"><i class="fa-solid fa-moon"></i> Theme</a>
-        <a href="/settings?tab=language"     class="<?= $tab==='language'?'active':'' ?>"><i class="fa-solid fa-language"></i> Language</a>
-        <a href="/settings?tab=timezone"     class="<?= $tab==='timezone'?'active':'' ?>"><i class="fa-solid fa-clock"></i> Timezone</a>
+        <a href="/settings?tab=preferences"  class="<?= $tab==='preferences'?'active':'' ?>"><i class="fa-solid fa-sliders"></i> Preferences</a>
         <a href="/settings?tab=notifications" class="<?= $tab==='notifications'?'active':'' ?>"><i class="fa-solid fa-bell"></i> Notifications</a>
         <div class="nav-group-label">Support</div>
         <a href="/settings?tab=about"        class="<?= $tab==='about'?'active':'' ?>"><i class="fa-solid fa-circle-info"></i> About</a>
@@ -107,90 +111,43 @@ ob_start();
     <!-- Content Panels -->
     <div class="settings-body">
 
-    <?php if ($tab === 'theme'): ?>
-    <div class="settings-panel">
-        <h2>Theme</h2>
-        <p class="panel-desc">Choose how Byabsayee looks for you. Your theme setting is stored locally in your browser.</p>
-        <div class="form-group" style="margin-bottom:24px">
-            <label>Appearance Mode</label>
-            <div class="theme-swatches">
-                <div class="theme-swatch" style="background:#f8f9fa;border:1px solid #dee2e6" onclick="setTheme('light')" id="sw-light" title="Light">
-                    <div class="swatch-check"><i class="fa-solid fa-check" style="color:#333"></i></div>
-                </div>
-                <div class="theme-swatch" style="background:#1a1a2e" onclick="setTheme('dark')" id="sw-dark" title="Dark">
-                    <div class="swatch-check"><i class="fa-solid fa-check"></i></div>
-                </div>
-                <div class="theme-swatch" style="background:linear-gradient(135deg,#f8f9fa 50%,#1a1a2e 50%)" onclick="setTheme('system')" id="sw-system" title="System">
-                    <div class="swatch-check"><i class="fa-solid fa-check"></i></div>
-                </div>
-            </div>
-            <div style="display:flex;gap:40px;margin-top:8px;font-size:12px;color:var(--text-muted)">
-                <span>Light</span><span>Dark</span><span>System</span>
-            </div>
-        </div>
-        <hr>
-        <div class="form-group">
-            <label>Brand Color</label>
-            <p style="font-size:13px;color:var(--text-muted);margin:0 0 10px">The accent color is set per-book in each book's settings.</p>
-            <a href="/books" class="btn btn-secondary btn-sm"><i class="fa-solid fa-book"></i> Go to My Books</a>
-        </div>
-    </div>
-    <script>
-    function setTheme(t) {
-        localStorage.setItem('bya_theme', t);
-        document.querySelectorAll('.theme-swatch').forEach(function(s){ s.classList.remove('selected'); });
-        var el = document.getElementById('sw-'+t);
-        if (el) el.classList.add('selected');
-        if (t === 'dark') document.documentElement.setAttribute('data-theme','dark');
-        else if (t === 'light') document.documentElement.removeAttribute('data-theme');
-        else { var pref = window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'; if(pref==='dark') document.documentElement.setAttribute('data-theme','dark'); else document.documentElement.removeAttribute('data-theme'); }
-    }
-    document.addEventListener('DOMContentLoaded', function() {
-        var t = localStorage.getItem('bya_theme')||'light';
-        var el = document.getElementById('sw-'+t);
-        if (el) el.classList.add('selected');
-    });
-    </script>
-
-    <?php elseif ($tab === 'language'): ?>
-    <div class="settings-panel">
-        <h2>Language &amp; Region</h2>
-        <p class="panel-desc">Set your preferred display language. Full localization support is coming soon.</p>
-        <div class="form-group">
-            <label>Interface Language</label>
-            <select onchange="alert('Language switching will be available in the next update. Your selection has been noted.')">
-                <option value="en" selected>🇬🇧 English (Default)</option>
-                <option value="bn">🇧🇩 বাংলা (Bengali) — Coming Soon</option>
-                <option value="ar">🇸🇦 عربى (Arabic) — Coming Soon</option>
-                <option value="ur">🇵🇰 اردو (Urdu) — Coming Soon</option>
-                <option value="hi">🇮🇳 हिन्दी (Hindi) — Coming Soon</option>
-            </select>
-        </div>
-        <div class="info-card" style="margin-top:8px">
-            <i class="fa-solid fa-globe"></i>
-            <div>
-                <strong>More languages coming</strong>
-                <span>We're actively working on full Bengali localization. If you'd like to help translate, contact us!</span>
-            </div>
-        </div>
-    </div>
-
-        <?php elseif ($tab === 'preferences'): ?>
+    <?php if ($tab === 'preferences'): ?>
     <div class="settings-panel">
         <h2>Preferences</h2>
-        <p class="panel-desc">Customize your date format, timezone, and default currency.</p>
+        <p class="panel-desc">Customize how Byabsayee looks and behaves for you.</p>
         <form method="POST" action="/settings/preferences">
             <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
+            <input type="hidden" name="theme" id="theme-input" value="<?= e($userTheme) ?>">
+
+            <div class="form-group" style="margin-bottom:24px">
+                <label>Appearance Mode</label>
+                <div class="theme-swatches">
+                    <div class="theme-swatch" style="background:#f8f9fa;border:1px solid #dee2e6" onclick="setTheme('light')" id="sw-light" title="Light">
+                        <div class="swatch-check"><i class="fa-solid fa-check" style="color:#333"></i></div>
+                    </div>
+                    <div class="theme-swatch" style="background:#1a1a2e" onclick="setTheme('dark')" id="sw-dark" title="Dark">
+                        <div class="swatch-check"><i class="fa-solid fa-check"></i></div>
+                    </div>
+                    <div class="theme-swatch" style="background:linear-gradient(135deg,#f8f9fa 50%,#1a1a2e 50%)" onclick="setTheme('system')" id="sw-system" title="System">
+                        <div class="swatch-check"><i class="fa-solid fa-check"></i></div>
+                    </div>
+                </div>
+                <div style="display:flex;gap:40px;margin-top:8px;font-size:12px;color:var(--text-muted)">
+                    <span>Light</span><span>Dark</span><span>System</span>
+                </div>
+            </div>
+            <hr>
             <div class="form-row">
                 <div class="form-group">
-                    <label>Date Format</label>
-                    <select name="date_format">
-                        <option value="d M Y"   <?= $userDateFmt==='d M Y'?'selected':'' ?>>15 Jan 2025</option>
-                        <option value="d/m/Y"   <?= $userDateFmt==='d/m/Y'?'selected':'' ?>>15/01/2025</option>
-                        <option value="m/d/Y"   <?= $userDateFmt==='m/d/Y'?'selected':'' ?>>01/15/2025</option>
-                        <option value="Y-m-d"   <?= $userDateFmt==='Y-m-d'?'selected':'' ?>>2025-01-15</option>
-                        <option value="d-m-Y"   <?= $userDateFmt==='d-m-Y'?'selected':'' ?>>15-01-2025</option>
+                    <label>Interface Language</label>
+                    <select name="language">
+                        <option value="en" <?= $userLang==='en'?'selected':'' ?>>🇬🇧 English</option>
+                        <option value="bn" <?= $userLang==='bn'?'selected':'' ?>>🇧🇩 বাংলা (Bengali)</option>
+                        <option value="ar" <?= $userLang==='ar'?'selected':'' ?>>🇸🇦 عربى (Arabic)</option>
+                        <option value="ur" <?= $userLang==='ur'?'selected':'' ?>>🇵🇰 اردو (Urdu)</option>
+                        <option value="hi" <?= $userLang==='hi'?'selected':'' ?>>🇮🇳 हिन्दी (Hindi)</option>
                     </select>
+                    <p style="font-size:12px;color:var(--text-muted);margin:6px 0 0">Full localization of the interface is still in progress — this saves your preference for when it ships.</p>
                 </div>
                 <div class="form-group">
                     <label>Timezone</label>
@@ -207,6 +164,16 @@ ob_start();
             </div>
             <div class="form-row">
                 <div class="form-group">
+                    <label>Date Format</label>
+                    <select name="date_format">
+                        <option value="d M Y"   <?= $userDateFmt==='d M Y'?'selected':'' ?>>15 Jan 2025</option>
+                        <option value="d/m/Y"   <?= $userDateFmt==='d/m/Y'?'selected':'' ?>>15/01/2025</option>
+                        <option value="m/d/Y"   <?= $userDateFmt==='m/d/Y'?'selected':'' ?>>01/15/2025</option>
+                        <option value="Y-m-d"   <?= $userDateFmt==='Y-m-d'?'selected':'' ?>>2025-01-15</option>
+                        <option value="d-m-Y"   <?= $userDateFmt==='d-m-Y'?'selected':'' ?>>15-01-2025</option>
+                    </select>
+                </div>
+                <div class="form-group">
                     <label>Default Currency</label>
                     <select name="currency">
                         <option value="BDT" <?= $userCurrency==='BDT'?'selected':'' ?>>BDT — Bangladeshi Taka (৳)</option>
@@ -219,95 +186,114 @@ ob_start();
                         <option value="AED" <?= $userCurrency==='AED'?'selected':'' ?>>AED — UAE Dirham (د.إ)</option>
                     </select>
                 </div>
-                <div class="form-group">
-                    <label>Language</label>
-                    <select name="language">
-                        <option value="en" <?= $userLang==='en'?'selected':'' ?>>English</option>
-                        <option value="bn" <?= $userLang==='bn'?'selected':'' ?>>বাংলা (Bengali)</option>
-                        <option value="ar" <?= $userLang==='ar'?'selected':'' ?>>عربى (Arabic)</option>
-                        <option value="ur" <?= $userLang==='ur'?'selected':'' ?>>اردو (Urdu)</option>
-                        <option value="hi" <?= $userLang==='hi'?'selected':'' ?>>हिन्दी (Hindi)</option>
-                    </select>
-                </div>
             </div>
-            <hr>
-            <h3 style="font-size:15px;margin:0 0 14px">Notifications</h3>
+            <div style="margin-top:18px">
+                <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> Save Preferences</button>
+            </div>
+        </form>
+    </div>
+    <script>
+    function setTheme(t) {
+        document.querySelectorAll('.theme-swatch').forEach(function(s){ s.classList.remove('selected'); });
+        var el = document.getElementById('sw-'+t);
+        if (el) el.classList.add('selected');
+        var input = document.getElementById('theme-input');
+        if (input) input.value = t;
+        if (t === 'dark') document.documentElement.setAttribute('data-theme','dark');
+        else if (t === 'light') document.documentElement.removeAttribute('data-theme');
+        else { var pref = window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'; if(pref==='dark') document.documentElement.setAttribute('data-theme','dark'); else document.documentElement.removeAttribute('data-theme'); }
+    }
+    document.addEventListener('DOMContentLoaded', function() {
+        var t = document.getElementById('theme-input') ? document.getElementById('theme-input').value : 'light';
+        var el = document.getElementById('sw-'+t);
+        if (el) el.classList.add('selected');
+    });
+    </script>
+
+    <?php elseif ($tab === 'notifications'): ?>
+    <div class="settings-panel">
+        <h2>Notification Preferences</h2>
+        <p class="panel-desc">Control what alerts and updates you receive.</p>
+        <form method="POST" action="/settings/notifications">
+            <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
+            <div class="toggle-row">
+                <div class="toggle-info">
+                    <strong>Email Notifications</strong>
+                    <span>Receive activity summaries and alerts via email</span>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" name="email_notifications" value="1" <?= $userEmailNot ? 'checked' : '' ?>>
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+            <div class="toggle-row">
+                <div class="toggle-info">
+                    <strong>Invoice Payment Reminders</strong>
+                    <span>Get notified when an invoice is due or overdue</span>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" name="notif_invoice_reminders" value="1" <?= $notifInvoiceReminders ? 'checked' : '' ?>>
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+            <div class="toggle-row">
+                <div class="toggle-info">
+                    <strong>Low Stock Alerts</strong>
+                    <span>Be alerted when product stock falls below threshold</span>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" name="notif_low_stock" value="1" <?= $notifLowStock ? 'checked' : '' ?>>
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+            <div class="toggle-row">
+                <div class="toggle-info">
+                    <strong>New Employee Joined</strong>
+                    <span>Get notified when an employee accepts an invitation</span>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" name="notif_employee_joined" value="1" <?= $notifEmployeeJoined ? 'checked' : '' ?>>
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+            <div class="toggle-row">
+                <div class="toggle-info">
+                    <strong>Monthly Summary Email</strong>
+                    <span>Receive a monthly business summary in your inbox</span>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" name="notif_monthly_summary" value="1" <?= $notifMonthlySummary ? 'checked' : '' ?>>
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+            <div class="toggle-row">
+                <div class="toggle-info">
+                    <strong>App Update Announcements</strong>
+                    <span>Be the first to know about new features</span>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" name="notif_app_updates" value="1" <?= $notifAppUpdates ? 'checked' : '' ?>>
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
             <div style="margin-top:18px">
                 <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> Save Preferences</button>
             </div>
         </form>
     </div>
 
-    <?php elseif ($tab === 'notifications'): ?>
-    <div class="settings-panel">
-        <h2>Notification Preferences</h2>
-        <p class="panel-desc">Control what alerts and updates you receive.</p>
-        <div class="toggle-row">
-            <div class="toggle-info">
-                <strong>Email Notifications</strong>
-                <span>Receive activity summaries and alerts via email</span>
-            </div>
-            <label class="toggle-switch">
-                <input type="checkbox" name="email_notifications" value="1" <?= $userEmailNot ? 'checked' : '' ?>>
-                <span class="toggle-slider"></span>
-            </label>
-        </div>
-        <div class="toggle-row">
-            <div class="toggle-info">
-                <strong>Invoice Payment Reminders</strong>
-                <span>Get notified when an invoice is due or overdue</span>
-            </div>
-            <label class="toggle-switch">
-                <input type="checkbox" checked>
-                <span class="toggle-slider"></span>
-            </label>
-        </div>
-        <div class="toggle-row">
-            <div class="toggle-info">
-                <strong>Low Stock Alerts</strong>
-                <span>Be alerted when product stock falls below threshold</span>
-            </div>
-            <label class="toggle-switch">
-                <input type="checkbox" checked>
-                <span class="toggle-slider"></span>
-            </label>
-        </div>
-        <div class="toggle-row">
-            <div class="toggle-info">
-                <strong>New Employee Joined</strong>
-                <span>Get notified when an employee accepts an invitation</span>
-            </div>
-            <label class="toggle-switch">
-                <input type="checkbox" checked>
-                <span class="toggle-slider"></span>
-            </label>
-        </div>
-        <div class="toggle-row">
-            <div class="toggle-info">
-                <strong>Monthly Summary Email</strong>
-                <span>Receive a monthly business summary in your inbox</span>
-            </div>
-            <label class="toggle-switch">
-                <input type="checkbox">
-                <span class="toggle-slider"></span>
-            </label>
-        </div>
-        <div class="toggle-row">
-            <div class="toggle-info">
-                <strong>App Update Announcements</strong>
-                <span>Be the first to know about new features</span>
-            </div>
-            <label class="toggle-switch">
-                <input type="checkbox" checked>
-                <span class="toggle-slider"></span>
-            </label>
-        </div>
-        <div style="margin-top:18px">
-            <button class="btn btn-primary" onclick="alert('Notification settings saved (demo).')"><i class="fa-solid fa-floppy-disk"></i> Save Preferences</button>
-        </div>
-    </div>
-
     <?php elseif ($tab === 'about'): ?>
+    <?php
+    // Build/version info is baked into build-info.json at Docker image build time
+    // (see Dockerfile) from git — never edit these values by hand.
+    $buildInfo = ['version' => 'dev', 'commit' => 'unknown', 'branch' => 'unknown', 'built_at' => null];
+    $buildInfoPath = BASE_PATH . '/build-info.json';
+    if (is_readable($buildInfoPath)) {
+        $decoded = json_decode(file_get_contents($buildInfoPath), true);
+        if (is_array($decoded)) $buildInfo = array_merge($buildInfo, $decoded);
+    }
+    $appVersion = $buildInfo['version'] !== 'dev' ? $buildInfo['version'] : ($buildInfo['commit'] !== 'unknown' ? $buildInfo['commit'] : 'dev');
+    ?>
     <div class="settings-panel">
         <h2>About Byabsayee</h2>
         <p class="panel-desc">Business management software built for real businesses.</p>
@@ -316,14 +302,16 @@ ob_start();
             <div>
                 <div style="font-size:22px;font-weight:800;color:var(--brand)">Byabsayee</div>
                 <div style="font-size:13px;color:var(--text-muted)">ERP & Accounting Platform</div>
-                <div style="margin-top:4px"><span class="badge badge-green">v1.0.0</span></div>
+                <div style="margin-top:4px"><span class="badge badge-green">v<?= e($appVersion) ?></span></div>
             </div>
         </div>
         <hr>
         <div class="form-row" style="margin-bottom:16px">
             <div>
                 <div style="font-size:12px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em">Version</div>
-                <div style="font-size:14px;font-weight:600;color:var(--text)">1.0.0 (stable)</div>
+                <div style="font-size:14px;font-weight:600;color:var(--text)">
+                    <?= e($appVersion) ?><?= $buildInfo['commit'] !== 'unknown' ? ' (' . e($buildInfo['commit']) . ')' : '' ?>
+                </div>
             </div>
             <div>
                 <div style="font-size:12px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em">PHP Version</div>
@@ -337,6 +325,12 @@ ob_start();
                 <div style="font-size:12px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em">Built With</div>
                 <div style="font-size:14px;font-weight:600;color:var(--text)">PHP, MariaDB, Nginx</div>
             </div>
+            <?php if ($buildInfo['built_at']): ?>
+            <div>
+                <div style="font-size:12px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em">Built</div>
+                <div style="font-size:14px;font-weight:600;color:var(--text)"><?= e(date('d M Y, H:i', strtotime($buildInfo['built_at']))) ?> UTC</div>
+            </div>
+            <?php endif; ?>
             <div>
                 <div style="font-size:14px;font-weight:600;color:var(--text)"><a href="https://byabsayee.com/privacypolicy">Privacy Policy <i class="fa-solid fa-arrow-up-right-from-square" style="color: var(--text);"></i></a></div>
             </div>

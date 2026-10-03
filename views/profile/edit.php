@@ -22,8 +22,8 @@ $countryCodes = [
 ?>
 <style>
 /* ── Profile edit layout — mirrors app settings ───────────────────────────── */
-.pe-wrap{display:flex;gap:24px;align-items:flex-start;max-width:980px}
-.pe-nav{width:230px;flex-shrink:0;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;overflow:hidden;position:sticky;top:20px}
+.pe-wrap{display:flex;gap:24px;align-items:flex-start}
+.pe-nav{width:220px;flex-shrink:0;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;overflow:hidden;position:sticky;top:20px}
 .pe-nav-header{padding:20px 16px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px}
 .pe-avatar{width:48px;height:48px;border-radius:50%;object-fit:cover;background:var(--brand);display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;font-weight:700;flex-shrink:0}
 .pe-avatar img{width:100%;height:100%;border-radius:50%;object-fit:cover}
@@ -899,7 +899,7 @@ $countryCodes = [
                 <div style="flex:1;min-width:220px">
                     <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:6px">Can't scan? Enter this key manually:</div>
                     <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
-                        <code id="totpSecretFull" style="flex:1;font-size:13px;font-weight:700;letter-spacing:2px;background:#f3f4f6;border:1px solid var(--border);padding:8px 12px;border-radius:8px;word-break:break-all;color:#111">Loading…</code>
+                        <code id="totpSecretFull" style="flex:1;font-size:13px;font-weight:700;letter-spacing:2px;background:var(--bg);border:1px solid var(--border);padding:8px 12px;border-radius:8px;word-break:break-all;color:var(--text)">Loading…</code>
                         <button type="button" onclick="copySecret()" style="flex-shrink:0;padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg);cursor:pointer;font-size:12px;color:var(--text)" title="Copy secret">
                             <i class="fa-solid fa-copy" id="copyIcon"></i>
                         </button>
@@ -925,12 +925,12 @@ $countryCodes = [
                         <div class="fg" style="margin:0;flex:1;min-width:140px">
                             <label style="font-size:12px;font-weight:600;display:block;margin-bottom:5px">6-digit code from your app</label>
                             <input type="text" name="totp_code" id="totpCodeInput" inputmode="numeric" maxlength="6" placeholder="000000" autofocus
-                                   style="width:100%;padding:10px 14px;border:2px solid var(--border);border-radius:10px;font-size:22px;font-weight:700;letter-spacing:6px;text-align:center;background:#fff;color:#111">
+                                   style="width:100%;padding:10px 14px;border:2px solid var(--border);border-radius:10px;font-size:22px;font-weight:700;letter-spacing:6px;text-align:center;background:var(--input-bg,var(--bg));color:var(--text)">
                         </div>
                         <div class="fg" style="margin:0;flex:1;min-width:160px">
                             <label style="font-size:12px;font-weight:600;display:block;margin-bottom:5px">Your current password</label>
                             <input type="password" name="confirm_password" placeholder="Enter password"
-                                   style="width:100%;padding:10px 14px;border:2px solid var(--border);border-radius:10px;font-size:14px;background:#fff;color:#111">
+                                   style="width:100%;padding:10px 14px;border:2px solid var(--border);border-radius:10px;font-size:14px;background:var(--input-bg,var(--bg));color:var(--text)">
                         </div>
                         <button type="submit" class="btn btn-primary" style="white-space:nowrap;padding:11px 20px">
                             <i class="fa-solid fa-shield-check"></i> Enable Authenticator
@@ -1032,7 +1032,7 @@ $countryCodes = [
             elseif (preg_match('/Firefox\/[\d.]+/', $ua, $m)) $uaShort = 'Firefox ' . explode('/', $m[0])[1];
             elseif (preg_match('/Safari\/[\d.]+/', $ua, $m) && !str_contains($ua,'Chrome')) $uaShort = 'Safari';
             elseif (preg_match('/Edg\/[\d.]+/', $ua, $m)) $uaShort = 'Edge ' . explode('/', $m[0])[1];
-            $lastActive = !empty($sess['last_active_at']) ? date('d M Y, H:i', strtotime($sess['last_active_at'])) : 'Unknown';
+            $lastActive = !empty($sess['last_active_at']) ? fmt_datetime($sess['last_active_at'], 'H:i') : 'Unknown';
         ?>
         <div class="session-item">
             <div class="session-icon <?= $isCurrent ? 'session-current' : '' ?>">

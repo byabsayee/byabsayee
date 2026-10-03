@@ -53,5 +53,6 @@
 
 </div>
 
+<?php include BASE_PATH . '/views/partials/dev-warning.php'; ?>
 </body>
 </html>

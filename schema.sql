@@ -29,6 +29,15 @@ CREATE TABLE IF NOT EXISTS `users` (
     `phone`               VARCHAR(20)  NULL DEFAULT NULL,
     `status`              ENUM('pending','active','suspended') NOT NULL DEFAULT 'pending',
 
+    -- App Settings (Settings page: Preferences + Notifications tabs)
+    `theme`                VARCHAR(10) NOT NULL DEFAULT 'light',
+    `language`             VARCHAR(5)  NOT NULL DEFAULT 'en',
+    `date_format`          VARCHAR(10) NOT NULL DEFAULT 'd M Y',
+    `timezone`             VARCHAR(50) NOT NULL DEFAULT 'Asia/Dhaka',
+    `default_currency`     VARCHAR(5)  NOT NULL DEFAULT 'BDT',
+    `email_notifications`  TINYINT(1)  NOT NULL DEFAULT 1,
+    `notification_prefs`   VARCHAR(500) NULL DEFAULT NULL,    -- JSON blob of granular notification toggles
+
     -- Email verification
     `verification_token`  VARCHAR(128) NULL DEFAULT NULL,
     `email_verified_at`   DATETIME     NULL DEFAULT NULL,

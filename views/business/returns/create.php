@@ -57,7 +57,7 @@ ob_start();
             <option value="">— Select Invoice —</option>
             <?php foreach ($invoices as $inv): ?>
             <option value="<?= $inv['id'] ?>">
-                <?= e($inv['invoice_no']) ?> | <?= e($inv['party_name'] ?? 'Unknown') ?> | <?= date('d M Y', strtotime($inv['date'])) ?> | <?= $sym.number_format($inv['total'],0) ?>
+                <?= e($inv['invoice_no']) ?> | <?= e($inv['party_name'] ?? 'Unknown') ?> | <?= fmt_date($inv['date']) ?> | <?= $sym.number_format($inv['total'],0) ?>
             </option>
             <?php endforeach; ?>
         </select>

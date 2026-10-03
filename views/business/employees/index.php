@@ -14,6 +14,7 @@ $moduleLabels = [
     'products'            => '📦 Products',
     'returns'             => '↩ Returns',
     'coupons'             => '🎟 Coupons',
+    'integrations'        => '🔗 Online store',
     'deliveries'          => '🚚 Deliveries',
     // Contacts
     'customers'           => '👥 Customers',

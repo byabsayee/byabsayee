@@ -170,5 +170,6 @@ if (boxes.length) {
     if (boxes[0]) boxes[0].focus();
 }
 </script>
+<?php include BASE_PATH . '/views/partials/dev-warning.php'; ?>
 </body>
 </html>

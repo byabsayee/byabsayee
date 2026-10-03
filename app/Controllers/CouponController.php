@@ -75,6 +75,7 @@ class CouponController
              VALUES (?,?,?,?,?,?,1,?,?,?)',
             [$book['id'],$name,$code,$type,$value,$note ?: null,$expiresAt,auth()['id'],now()]
         );
+        \App\Services\Integration\Hooks::emit((int)$book['id'], 'coupon', (int)Database::lastId(), 'create');
 
         redirect('/books/'.$book['id'].'/coupons', ['success' => "Coupon \"{$code}\" created."]);
     }
@@ -115,6 +116,7 @@ class CouponController
             'UPDATE coupons SET name=?,code=?,discount_type=?,discount_value=?,note=?,expires_at=? WHERE id=? AND book_id=?',
             [$name,$code,$type,$value,$note ?: null,$expiresAt,$coupon['id'],$book['id']]
         );
+        \App\Services\Integration\Hooks::emit((int)$book['id'], 'coupon', (int)$coupon['id']);
 
         redirect('/books/'.$book['id'].'/coupons', ['success' => 'Coupon updated.']);
     }
@@ -128,6 +130,7 @@ class CouponController
         $coupon = $this->getCouponOrFail($params['coupon_id'], $book['id']);
         $new    = $coupon['is_active'] ? 0 : 1;
         Database::run('UPDATE coupons SET is_active=? WHERE id=? AND book_id=?', [$new,$coupon['id'],$book['id']]);
+        \App\Services\Integration\Hooks::emit((int)$book['id'], 'coupon', (int)$coupon['id']);
         $msg = $new ? "Coupon \"{$coupon['code']}\" activated." : "Coupon \"{$coupon['code']}\" deactivated.";
         redirect('/books/'.$book['id'].'/coupons', ['success' => $msg]);
     }
@@ -138,6 +141,10 @@ class CouponController
         csrf_verify();
         $book = $this->getBookOrFail($params['id']);
         if (!book_can($book, 'coupons', 'delete')) abort_403();
+        // A coupon the online store knows is archived rather than erased, so both sides stay consistent.
+        if (\App\Services\Integration\Hooks::couponDelete((int)$book['id'], (int)$params['coupon_id'])) {
+            redirect('/books/'.$book['id'].'/coupons', ['success' => 'Coupon archived (it is linked to your online store, so it was deactivated instead of erased).']);
+        }
         Database::run('DELETE FROM coupons WHERE id=? AND book_id=?', [$params['coupon_id'],$book['id']]);
         redirect('/books/'.$book['id'].'/coupons', ['success' => 'Coupon deleted.']);
     }
@@ -192,7 +199,7 @@ class CouponController
         if (!$coupon['is_active']) { echo json_encode(['error'=>'This coupon is inactive.']); exit; }
 
         if ($coupon['expires_at'] && strtotime($coupon['expires_at']) < time()) {
-            echo json_encode(['error'=>'Coupon expired on '.date('d M Y, h:i A', strtotime($coupon['expires_at'])).'.']);
+            echo json_encode(['error'=>'Coupon expired on '.fmt_datetime($coupon['expires_at']).'.']);
             exit;
         }
 
@@ -221,9 +228,17 @@ class CouponController
         if (!$coupon) return null;
         if ($coupon['expires_at'] && strtotime($coupon['expires_at']) < time())
             return ['expired'=>true,'coupon'=>$coupon];
+        // Rules that come from the online store's richer coupons (all optional / zero = no rule)
+        if (!empty($coupon['starts_at']) && strtotime($coupon['starts_at']) > time()) return null;
+        if ((float)($coupon['min_subtotal'] ?? 0) > 0 && $subtotal < (float)$coupon['min_subtotal']) return null;
+        if (!empty($coupon['usage_limit'])) {
+            $used = (int)(Database::row("SELECT COUNT(*) c FROM invoices WHERE book_id=? AND coupon_code=? AND deleted_at IS NULL AND status<>'cancelled'", [$bookId, $coupon['code']])['c'] ?? 0);
+            if ($used >= (int)$coupon['usage_limit']) return null;
+        }
         $discount = $coupon['discount_type'] === 'percent'
             ? round($subtotal * $coupon['discount_value'] / 100, 2)
             : min((float)$coupon['discount_value'], $subtotal);
+        if (!empty($coupon['max_discount'])) $discount = min($discount, (float)$coupon['max_discount']);
         return ['coupon'=>$coupon,'discount'=>$discount];
     }
 

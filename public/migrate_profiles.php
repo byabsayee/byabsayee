@@ -49,6 +49,14 @@ $userCols = [
     ['blood_group',        "ALTER TABLE users ADD COLUMN blood_group VARCHAR(10) NULL AFTER avatar"],
     ['gender',             "ALTER TABLE users ADD COLUMN gender ENUM('male','female','other','prefer_not') NULL AFTER blood_group"],
     ['date_of_birth',      "ALTER TABLE users ADD COLUMN date_of_birth DATE NULL AFTER gender"],
+    // App Settings (Settings page: Preferences + Notifications tabs)
+    ['theme',               "ALTER TABLE users ADD COLUMN theme VARCHAR(10) NOT NULL DEFAULT 'light' AFTER date_of_birth"],
+    ['language',            "ALTER TABLE users ADD COLUMN language VARCHAR(5) NOT NULL DEFAULT 'en' AFTER theme"],
+    ['date_format',         "ALTER TABLE users ADD COLUMN date_format VARCHAR(10) NOT NULL DEFAULT 'd M Y' AFTER language"],
+    ['timezone',            "ALTER TABLE users ADD COLUMN timezone VARCHAR(50) NOT NULL DEFAULT 'Asia/Dhaka' AFTER date_format"],
+    ['default_currency',    "ALTER TABLE users ADD COLUMN default_currency VARCHAR(5) NOT NULL DEFAULT 'BDT' AFTER timezone"],
+    ['email_notifications', "ALTER TABLE users ADD COLUMN email_notifications TINYINT(1) NOT NULL DEFAULT 1 AFTER default_currency"],
+    ['notification_prefs',  "ALTER TABLE users ADD COLUMN notification_prefs VARCHAR(500) NULL DEFAULT NULL AFTER email_notifications"],
 ];
 foreach ($userCols as [$col, $sql]) {
     if (!hasCol($pdo, 'users', $col)) run($pdo, $sql, "Add users.$col");

@@ -84,6 +84,21 @@ ob_start();
         <?php if ($due > 0 && $invoice['status'] !== 'cancelled'): ?>
         <button class="btn btn-primary" data-modal="paymentModal">Record Payment</button>
         <?php endif; ?>
+        <?php if (($invoice['source'] ?? null) === 'online_store' || !empty($invoice['sync_to_store'])): ?>
+        <form method="POST" action="/books/<?= $book['id'] ?>/invoices/<?= $invoice['id'] ?>/fulfilment" style="display:flex;gap:6px;align-items:center">
+            <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
+            <span title="Online order<?= !empty($invoice['external_number']) ? ' ' . e($invoice['external_number']) : '' ?>" style="font-size:.8rem;color:var(--text-muted)"><i class="fa-solid fa-link"></i> <?= e($invoice['external_number'] ?: 'Online') ?></span>
+            <?php $__storeConn = null; try { $__storeConn = \App\Services\Integration\Conn::linkedForBook((int)$book['id']); } catch (\Throwable $e) {} ?>
+            <?php if ($__storeConn && !empty($__storeConn['site_domain']) && !empty($invoice['external_number'])): ?>
+            <a href="https://<?= e($__storeConn['site_domain']) ?>/admin/orders.php?q=<?= e(rawurlencode($invoice['external_number'])) ?>" target="_blank" rel="noopener" style="font-size:.8rem">Open in store admin ↗</a>
+            <?php endif; ?>
+            <select name="status" onchange="this.form.submit()" style="width:auto">
+                <?php foreach (['placed' => 'Placed', 'processing' => 'Processing', 'shipped' => 'Shipped', 'delivered' => 'Delivered', 'cancelled' => 'Cancelled'] as $k => $l): ?>
+                <option value="<?= $k ?>" <?= ($invoice['status'] === 'cancelled' ? 'cancelled' : ($invoice['fulfilment_status'] ?: 'placed')) === $k ? 'selected' : '' ?>><?= $l ?></option>
+                <?php endforeach; ?>
+            </select>
+        </form>
+        <?php endif; ?>
         <form method="POST" action="/books/<?= $book['id'] ?>/invoices/<?= $invoice['id'] ?>/delete"
               data-confirm="Delete invoice <?= e($invoice['invoice_no']) ?>?">
             <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
@@ -475,12 +490,12 @@ ob_start();
             <?php endif; ?>
             <div class="info-row">
                 <span>Created At</span>
-                <strong><?= date('d M Y, h:i A', strtotime($invoice['created_at'])) ?></strong>
+                <strong><?= fmt_datetime($invoice['created_at']) ?></strong>
             </div>
             <?php if ($invoice['updated_at'] ?? ''): ?>
             <div class="info-row">
                 <span>Last Updated</span>
-                <span style="color:var(--text-muted)"><?= date('d M Y, h:i A', strtotime($invoice['updated_at'])) ?></span>
+                <span style="color:var(--text-muted)"><?= fmt_datetime($invoice['updated_at']) ?></span>
             </div>
             <?php endif; ?>
         </div>

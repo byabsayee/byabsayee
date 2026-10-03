@@ -8,7 +8,9 @@ class SettingsController
     public function index(): void
     {
         if (guest()) redirect('/login');
-        $tab  = $_GET['tab'] ?? 'profile';
+        $tab  = $_GET['tab'] ?? 'preferences';
+        // Old links used separate theme/language/timezone tabs — they now live under one Preferences tab.
+        if (in_array($tab, ['theme', 'language', 'timezone'], true)) $tab = 'preferences';
         $user = auth();
         require BASE_PATH . '/views/settings/index.php';
     }
@@ -33,6 +35,8 @@ class SettingsController
             'UPDATE users SET name=?, email=?, phone=? WHERE id=?',
             [$name, $email, $phone ?: null, $user['id']]
         );
+        // Sync session so the page reflects the change immediately
+        $_SESSION['user'] = Database::row('SELECT * FROM users WHERE id=?', [$user['id']]);
         redirect('/settings?tab=profile', ['success' => 'Profile updated.']);
     }
 
@@ -57,6 +61,7 @@ class SettingsController
         }
 
         Database::run('UPDATE users SET password_hash=? WHERE id=?', [password_hash($new, PASSWORD_DEFAULT), $user['id']]);
+        $_SESSION['user'] = Database::row('SELECT * FROM users WHERE id=?', [$user['id']]);
         redirect('/settings?tab=password', ['success' => 'Password changed successfully.']);
     }
 
@@ -64,30 +69,54 @@ class SettingsController
     {
         if (guest()) redirect('/login');
         csrf_verify();
-        $user         = auth();
-        $theme        = $_POST['theme']    ?? 'light';
-        $language     = $_POST['language'] ?? 'en';
-        $dateFormat   = $_POST['date_format']   ?? 'Y-m-d';
-        $timezone     = $_POST['timezone']       ?? 'Asia/Dhaka';
-        $currency     = $_POST['currency']       ?? 'BDT';
-        $notifications= !empty($_POST['email_notifications']) ? 1 : 0;
-        $twoFa        = !empty($_POST['two_fa'])               ? 1 : 0;
+        $user = auth();
+
+        $theme      = in_array($_POST['theme'] ?? '', ['light', 'dark', 'system'], true) ? $_POST['theme'] : 'light';
+        $language   = trim($_POST['language'] ?? '') ?: 'en';
+        $dateFormat = trim($_POST['date_format'] ?? '') ?: 'd M Y';
+        $timezone   = trim($_POST['timezone'] ?? '') ?: 'Asia/Dhaka';
+        $currency   = trim($_POST['currency'] ?? '') ?: 'BDT';
 
         try {
             Database::run(
-                'UPDATE users SET theme=?, language=?, date_format=?, timezone=?, default_currency=?,
-                 email_notifications=?, two_fa_enabled=? WHERE id=?',
-                [$theme, $language, $dateFormat, $timezone, $currency,
-                 $notifications, $twoFa, $user['id']]
+                'UPDATE users SET theme=?, language=?, date_format=?, timezone=?, default_currency=? WHERE id=?',
+                [$theme, $language, $dateFormat, $timezone, $currency, $user['id']]
             );
+            // Sync session so the page reflects the change immediately — without this,
+            // the form kept rendering the stale values cached in $_SESSION['user'].
+            $_SESSION['user'] = Database::row('SELECT * FROM users WHERE id=?', [$user['id']]);
+            redirect('/settings?tab=preferences', ['success' => 'Preferences saved.']);
         } catch (\Throwable $e) {
-            // Columns may not exist yet — store as JSON in a prefs column if available
-            try {
-                $prefs = json_encode(compact('theme','language','dateFormat','timezone','currency','notifications','twoFa'));
-                Database::run('UPDATE users SET preferences=? WHERE id=?', [$prefs, $user['id']]);
-            } catch (\Throwable $e2) { /* silently skip */ }
+            redirect('/settings?tab=preferences', ['error' => 'Could not save preferences. Please try again — if this keeps happening, contact support.']);
         }
-        redirect('/settings?tab=preferences', ['success' => 'Preferences saved.']);
+    }
+
+    public function updateNotifications(): void
+    {
+        if (guest()) redirect('/login');
+        csrf_verify();
+        $user = auth();
+
+        $emailNotifications = !empty($_POST['email_notifications']) ? 1 : 0;
+        $prefs = [
+            'invoice_reminders' => !empty($_POST['notif_invoice_reminders']) ? 1 : 0,
+            'low_stock_alerts'  => !empty($_POST['notif_low_stock'])         ? 1 : 0,
+            'employee_joined'   => !empty($_POST['notif_employee_joined'])   ? 1 : 0,
+            'monthly_summary'   => !empty($_POST['notif_monthly_summary'])   ? 1 : 0,
+            'app_updates'       => !empty($_POST['notif_app_updates'])       ? 1 : 0,
+        ];
+
+        try {
+            Database::run(
+                'UPDATE users SET email_notifications=?, notification_prefs=? WHERE id=?',
+                [$emailNotifications, json_encode($prefs), $user['id']]
+            );
+            // Sync session so the toggles reflect the saved state immediately
+            $_SESSION['user'] = Database::row('SELECT * FROM users WHERE id=?', [$user['id']]);
+            redirect('/settings?tab=notifications', ['success' => 'Notification preferences saved.']);
+        } catch (\Throwable $e) {
+            redirect('/settings?tab=notifications', ['error' => 'Could not save notification preferences. Please try again.']);
+        }
     }
 
     public function deleteAccount(): void

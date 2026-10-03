@@ -10,9 +10,11 @@ class InvoicePdfService
         ?array $customer,
         ?array $supplier,
         ?array $details,
-        ?array $creator
-    ): void {
+        ?array $creator,
+        bool   $returnString = false      // true: return the PDF bytes (used by the online-store bridge) instead of sending a download
+    ): ?string {
         if (!class_exists('\Mpdf\Mpdf')) {
+            if ($returnString) return null;
             // Fallback: redirect to browser-printable thermal view
             $bookId    = $book['id'];
             $invoiceId = $invoice['id'];
@@ -64,7 +66,8 @@ class InvoicePdfService
         // ── QR ────────────────────────────────────────────────────────────────
         $token      = $invoice['public_token'] ?? '';
         $invoiceUrl = config('url') . '/invoice/' . $token;
-        $qrUrl      = 'https://api.qrserver.com/v1/create-qr-code/?size=85x85&data=' . urlencode($invoiceUrl);
+        // Local QR (data URI): no outbound request, so the PDF renders offline and quickly (also when fetched by the online store).
+        $qrUrl      = \App\Helpers\QrCode::dataUri($invoiceUrl, 160);
 
         // ── Totals ────────────────────────────────────────────────────────────
         $subtotal = (float)$invoice['subtotal'];
@@ -264,12 +267,15 @@ table { border-collapse:collapse; }
         ]);
         $mpdf->SetTitle('Invoice ' . $invoiceNo);
         $mpdf->WriteHTML($html);
+        if ($returnString) return $mpdf->Output('Invoice-' . $invoiceNo . '.pdf', 'S');
         $mpdf->Output('Invoice-' . $invoiceNo . '.pdf', 'D');
         } catch (\Throwable $e) {
             error_log('mPDF error: ' . $e->getMessage());
+            if ($returnString) return null;
             header('Content-Type: text/plain; charset=utf-8');
             echo 'PDF generation failed: ' . htmlspecialchars($e->getMessage()) . "\n\nTry the thermal print instead.";
         }
+        return null;
     }
 
     // ── Number to words ───────────────────────────────────────────────────────

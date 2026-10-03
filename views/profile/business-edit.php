@@ -74,7 +74,7 @@ $countryCodes = [
 .add-row-btn:hover{border-color:var(--brand);color:var(--brand)}
 .page-editor{border:1px solid var(--border);border-radius:8px;overflow:hidden}
 .page-editor-toolbar{padding:8px 12px;background:var(--bg);border-bottom:1px solid var(--border);display:flex;gap:6px;flex-wrap:wrap}
-.page-editor-toolbar button{padding:4px 10px;border:1px solid var(--border);border-radius:6px;background:#fff;font-size:12px;cursor:pointer;font-family:inherit;color:var(--text)}
+.page-editor-toolbar button{padding:4px 10px;border:1px solid var(--border);border-radius:6px;background:var(--card-bg);font-size:12px;cursor:pointer;font-family:inherit;color:var(--text)}
 .page-editor-toolbar button:hover{background:var(--brand);color:#fff;border-color:var(--brand)}
 .profile-link-card{background:rgba(26,107,74,.06);border:1px solid var(--brand);border-radius:10px;padding:14px 18px;display:flex;align-items:center;gap:14px;margin-bottom:20px}
 .profile-link-card i{font-size:22px;color:var(--brand)}

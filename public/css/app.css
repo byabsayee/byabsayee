@@ -16,6 +16,11 @@
     --border-dark:  #cbd5e1;
     --bg:           #f8fafc;
     --white:        #ffffff;
+    --card-bg:      #ffffff;
+    --surface:      #ffffff;
+    --muted:        #64748b;
+    --hover-bg:     rgba(0,0,0,.04);
+    --input-bg:     #ffffff;
     --sidebar-w:    245px;
     --sidebar-collapsed-w: 56px;
     --topbar-h:     56px;
@@ -36,6 +41,45 @@
     --amber-bg: #fffbeb;
     --blue:     #2563eb;
     --blue-bg:  #eff6ff;
+}
+
+/* ============================================================
+   DARK THEME — applied when <html data-theme="dark">.
+   Every color in the app is drawn from the variables above, so
+   overriding them here re-themes the entire app (sidebar, cards,
+   forms, tables, books, invoices — everything) with no per-page
+   changes needed.
+   ============================================================ */
+[data-theme="dark"] {
+    --brand:        #22a06b;
+    --brand-light:  rgba(34,160,107,.16);
+    --brand-dark:   #167a51;
+    --accent:       #f5a623;
+    --text:         #e7ecf3;
+    --text-muted:   #9aa7b8;
+    --text-light:   #6b7787;
+    --border:       #2a3444;
+    --border-dark:  #3a4658;
+    --bg:           #0f1520;
+    --white:        #182231;
+    --card-bg:      #182231;
+    --surface:      #182231;
+    --muted:        #9aa7b8;
+    --hover-bg:     rgba(255,255,255,.06);
+    --input-bg:     #0f1520;
+    --shadow:       0 1px 3px rgba(0,0,0,.35), 0 1px 2px rgba(0,0,0,.25);
+    --shadow-md:    0 4px 12px rgba(0,0,0,.40);
+    --shadow-lg:    0 10px 30px rgba(0,0,0,.50);
+    --hover-clr:    #2a3444;
+
+    --green:    #34d17c;
+    --green-bg: rgba(52,209,124,.14);
+    --red:      #f2555a;
+    --red-bg:   rgba(242,85,90,.14);
+    --amber:    #f0a93e;
+    --amber-bg: rgba(240,169,62,.14);
+    --blue:     #4c92f5;
+    --blue-bg:  rgba(76,146,245,.14);
 }
 
 body {

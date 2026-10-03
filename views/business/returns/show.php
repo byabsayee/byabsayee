@@ -44,12 +44,12 @@ ob_start();
                 <a href="/books/<?= $book['id'] ?>/invoices/<?= $invoice['id'] ?>" style="font-size:15px;font-weight:600;color:var(--brand)">
                     <?= e($invoice['invoice_no']) ?>
                 </a>
-                <div style="font-size:12px;color:var(--text-muted)"><?= date('d M Y', strtotime($invoice['date'])) ?></div>
+                <div style="font-size:12px;color:var(--text-muted)"><?= fmt_date($invoice['date']) ?></div>
                 <?php else: ?><span style="color:var(--text-muted)">—</span><?php endif; ?>
             </div>
             <div>
                 <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin-bottom:4px">Return Date</div>
-                <div style="font-size:15px;font-weight:600"><?= date('d M Y', strtotime($return['date'])) ?></div>
+                <div style="font-size:15px;font-weight:600"><?= fmt_date($return['date']) ?></div>
             </div>
         </div>
     </div>

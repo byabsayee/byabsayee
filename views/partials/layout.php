@@ -1,13 +1,27 @@
 <?php
-// Apply user's browser timezone (sent via JS cookie)
+// Apply user's browser timezone (sent via JS cookie) — no-op if already applied in index.php
 if (function_exists('set_timezone_from_cookie')) set_timezone_from_cookie();
+
+// Resolve the logged-in user's saved appearance preference. 'system' is resolved
+// client-side (below) since PHP can't see the OS/browser preference.
+$__theme = $_SESSION['user']['theme'] ?? 'light';
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en"<?= $__theme === 'dark' ? ' data-theme="dark"' : '' ?>>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= e($pageTitle ?? 'Byabsayee') ?></title>
+    <?php if ($__theme === 'system'): ?>
+    <script>
+    // Resolve "system" theme before first paint to avoid a flash of the wrong theme.
+    (function(){ try {
+        if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.documentElement.setAttribute('data-theme', 'dark');
+        }
+    } catch(e) {} })();
+    </script>
+    <?php endif; ?>
     <link rel="apple-touch-icon" sizes="180x180" href="<?= asset('apple-touch-icon.png') ?>">
     <link rel="icon" type="image/png" sizes="32x32" href="<?= asset('favicon-32x32.png') ?>">
     <link rel="icon" type="image/png" sizes="16x16" href="<?= asset('favicon-16x16.png') ?>">
@@ -172,6 +186,9 @@ function navActive(string $path): string {
         <?php if ($sidebarIsOwner): ?>
         <a href="/books/<?= $currentBookId ?>/edit"         title="Book Settings" class="nav-item <?= navActive('/books/'.$currentBookId.'/edit') ?>">
             <i class="fa-solid fa-gear"></i> Book Settings
+        </a>
+        <a href="/books/<?= $currentBookId ?>/integrations" title="Online store" class="nav-item <?= navActive('/books/'.$currentBookId.'/integrations') ?>">
+            <i class="fa-solid fa-link"></i> Online store
         </a>
         <?php endif; ?>
 
@@ -465,5 +482,6 @@ function toggleNavDropdown(id, e) {
 .nav-sub-item:hover { background:var(--hover-bg, rgba(0,0,0,.05)); color:var(--text); }
 .nav-sub-item.active { background:var(--brand-light, rgba(26,107,74,.1)); color:var(--brand); font-weight:600; }
 </style>
+<?php include BASE_PATH . '/views/partials/dev-warning.php'; ?>
 </body>
 </html>

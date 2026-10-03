@@ -200,7 +200,7 @@ ob_start();
                 </div>
                 <?php endif; ?>
                 <div style="font-size:10px;color:var(--text-muted);margin-top:2px">
-                    Batch <?= $bIdx+1 ?> · Added <?= date('d M Y', strtotime($bat['created_at'])) ?>
+                    Batch <?= $bIdx+1 ?> · Added <?= fmt_date($bat['created_at']) ?>
                 </div>
             </td>
             <td class="td-muted"><?= $p['category_name'] ? e($p['category_name']) : '—' ?></td>

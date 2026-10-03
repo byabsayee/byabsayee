@@ -103,6 +103,10 @@ class Router
     private function notFound(): void
     {
         http_response_code(404);
+        if (defined('INTEGRATION_API')) {   // machine API: JSON, never an HTML page
+            echo json_encode(['ok' => false, 'error' => ['code' => 'not_found', 'message' => 'Unknown route.']]);
+            return;
+        }
         require BASE_PATH . '/views/errors/404.php';
     }
 }

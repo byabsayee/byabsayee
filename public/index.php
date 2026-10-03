@@ -49,7 +49,7 @@ set_exception_handler(function (\Throwable $e): void {
     <p>$msg</p>
     <p><code>$file : $line</code></p>
     <p style='margin-top:20px'><a href='javascript:history.back()'>← Go back</a></p>
-    </div></body></html>";
+    </div><div style='position:fixed;left:0;right:0;bottom:0;background:#7c2d12;color:#fff;padding:7px 14px;text-align:center;font:600 12px system-ui,sans-serif'>⚠ IN DEVELOPMENT — Byabsayee is unstable and could lose or destroy data. For testing only; do not use it for real work.</div></body></html>";
 });
 
 // ---- 3. AUTOLOADER ----------------------------------------------------------
@@ -78,7 +78,14 @@ require_once BASE_PATH . '/app/Helpers/helpers.php';
 // Apply user's browser timezone immediately — must be before ANY date() call.
 // JavaScript writes 'byabsayee_tz' cookie with the IANA timezone string.
 // All date(), now(), and strftime() calls in the same request will use this.
-set_timezone_from_cookie();
+$__apiPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
+if (strncmp($__apiPath, '/api/v1/integrations/', 21) === 0) {
+    // Machine-to-machine API (online-store integration): no session, no cookies, no CSRF, always JSON.
+    define('INTEGRATION_API', true);
+    date_default_timezone_set('UTC');
+} else {
+    set_timezone_from_cookie();
+}
 
 // ---- 5. LOAD COMPOSER AUTOLOADER (mPDF, PHPMailer) --------------------------
 // Only if vendor/ directory exists (after running composer install)
@@ -86,19 +93,54 @@ if (file_exists(BASE_PATH . '/vendor/autoload.php')) {
     require_once BASE_PATH . '/vendor/autoload.php';
 }
 
+// ---- 5b. MACHINE API ---------------------------------------------------------
+// Answers with JSON for everything, including uncaught errors and fatals, and never touches the session.
+if (defined('INTEGRATION_API')) {
+    header('Content-Type: application/json; charset=utf-8');
+    header('Cache-Control: no-store');
+    header('X-Content-Type-Options: nosniff');
+    set_exception_handler(function (\Throwable $e): void {
+        error_log('[integration api] ' . $e->getMessage() . ' @' . $e->getFile() . ':' . $e->getLine());
+        if (!headers_sent()) http_response_code(500);
+        echo json_encode(['ok' => false, 'error' => ['code' => 'server_error', 'message' => 'The book could not process this request.']]);
+    });
+    register_shutdown_function(function (): void {
+        $e = error_get_last();
+        if ($e && in_array($e['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR], true) && !headers_sent()) {
+            error_log('[integration api fatal] ' . $e['message']);
+            http_response_code(500);
+            echo json_encode(['ok' => false, 'error' => ['code' => 'server_error', 'message' => 'The book could not process this request.']]);
+        }
+    });
+    $router = new \App\Helpers\Router();
+    require_once BASE_PATH . '/routes.php';
+    $router->dispatch();
+    exit;
+}
+
 // ---- 6. START SESSION -------------------------------------------------------
 session_set_cookie_params([
     'lifetime' => config('session.lifetime'),
     'path'     => '/',
     'domain'   => '',        // blank = current host only, works across devices
-    'secure'   => false,     // true only if HTTPS
+    'secure'   => (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https'),
     'httponly' => true,
     'samesite' => 'Lax',
 ]);
 session_name(config('session.name'));
 session_start();
 
-// ---- 6b. SESSION HEARTBEAT + REVOCATION CHECK ------------------------------
+// ---- 6b. APPLY LOGGED-IN USER'S SAVED TIMEZONE (overrides the browser-guess cookie) ----
+// The cookie above is set by JS on every page load from the browser's locale, which is
+// only a fallback. If the user has explicitly picked a timezone in Settings, that wins.
+if (!empty($_SESSION['user']['timezone'])) {
+    try {
+        new \DateTimeZone($_SESSION['user']['timezone']); // throws on invalid
+        date_default_timezone_set($_SESSION['user']['timezone']);
+    } catch (\Throwable $e) { /* keep the cookie-based guess */ }
+}
+
+// ---- 6c. SESSION HEARTBEAT + REVOCATION CHECK ------------------------------
 // 1. Keeps the current session row up-to-date so "Active Sessions" always shows
 //    this device (INSERT … ON DUPLICATE KEY UPDATE, throttled to once/minute).
 // 2. Checks that the session still exists in user_sessions — if it was deleted

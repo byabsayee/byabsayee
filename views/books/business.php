@@ -400,7 +400,7 @@ $visibleModules = array_filter($allModules, fn($m) => $vCan($m['perm'][0], $m['p
                     <div class="activity-desc"><?= e($act['description'] ?? $act['action'] ?? 'Activity') ?></div>
                     <div class="activity-meta">
                         <strong><?= e($act['user_name'] ?? 'System') ?></strong>
-                        · <?= e(date('d M Y, g:i a', strtotime($act['created_at']))) ?>
+                        · <?= e(fmt_datetime($act['created_at'], 'g:i a')) ?>
                     </div>
                 </div>
             </div>

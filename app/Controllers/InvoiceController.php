@@ -339,6 +339,12 @@ class InvoiceController
             redirect('/books/'.$book['id'].'/invoices/create?type='.$type, ['error' => 'Add at least one item.']);
         }
 
+        // Online-store sync: a sale can be flagged to appear as an order on the website (it needs a customer with a phone).
+        $syncToStore = $type === 'sale' && !empty($_POST['sync_to_store']) && \App\Services\Integration\Hooks::active((int)$book['id']);
+        if ($syncToStore && (!$customerId || !\App\Services\Integration\Hooks::customerCanOrder($customerId))) {
+            redirect('/books/'.$book['id'].'/invoices/create?type='.$type, ['error' => 'To send this sale to the online store, choose a customer who has a phone number.']);
+        }
+
         $subtotal = 0;
         $items    = [];
         foreach ($itemNames as $i => $itemName) {
@@ -504,6 +510,9 @@ class InvoiceController
             }
         }
 
+        if ($syncToStore) Database::run('UPDATE invoices SET sync_to_store=1 WHERE id=?', [$invoiceId]);
+        \App\Services\Integration\Hooks::invoiceCreated((int)$invoiceId);
+
         ActivityLogger::write($book['id'], auth()['id'], 'invoice.created', 'Invoice', $invoiceId,
             "Invoice created — {$invoiceNo} — " . ucfirst($type),
             null, ['invoice_no'=>$invoiceNo,'type'=>$type]);
@@ -606,6 +615,7 @@ class InvoiceController
         if (!book_can($book, 'invoices', 'record_payment')) abort_403();
         $invoice = $this->getInvoiceOrFail($params['invoice_id'], $book['id']);
 
+        if ($invoice['status'] === 'cancelled') redirect('/books/'.$book['id'].'/invoices/'.$invoice['id'], ['error' => 'This invoice is cancelled — payments cannot be recorded.']);
         $amount = min((float)($_POST['amount'] ?? 0), $invoice['total'] - $invoice['paid']);
         $method = trim($_POST['method'] ?? 'cash');
         $note   = trim($_POST['note']   ?? '');
@@ -616,8 +626,14 @@ class InvoiceController
         $status  = $newPaid >= $invoice['total'] ? 'paid' : 'partial';
 
         Database::run('UPDATE invoices SET paid=?,status=? WHERE id=?', [$newPaid,$status,$invoice['id']]);
-        Database::run('INSERT INTO payments (invoice_id,amount,method,date,note) VALUES (?,?,?,?,?)',
-            [$invoice['id'],$amount,$method,date('Y-m-d'),$note ?: null]);
+        try {
+            Database::run('INSERT INTO payments (invoice_id,amount,method,date,note,paid_at) VALUES (?,?,?,?,?,UTC_TIMESTAMP())',
+                [$invoice['id'],$amount,$method,date('Y-m-d'),$note ?: null]);
+        } catch (\PDOException $e) {   // integration migration not applied yet — fall back to the original columns
+            Database::run('INSERT INTO payments (invoice_id,amount,method,date,note) VALUES (?,?,?,?,?)',
+                [$invoice['id'],$amount,$method,date('Y-m-d'),$note ?: null]);
+        }
+        \App\Services\Integration\Hooks::payment((int)Database::lastId());
 
         ActivityLogger::write($book['id'], auth()['id'], 'invoice.payment', 'Invoice', (int)$invoice['id'],
             "Payment recorded — {$invoice['invoice_no']} — {$amount} via {$method} (status: {$status})",
@@ -662,6 +678,12 @@ class InvoiceController
             "Invoice deleted — {$invoice['invoice_no']} — " . ucfirst($invoice['type']) . " — {$invoice['total']}",
             ['invoice_no'=>$invoice['invoice_no'],'type'=>$invoice['type'],'total'=>$invoice['total']]);
 
+        // Undo the invoice's effect on stock, dues and payments (deleting used to leave all of it in place), tell the online store,
+        // and keep online orders on record as cancelled instead of hiding them.
+        $keepOnRecord = \App\Services\Integration\Hooks::invoiceDeleting($invoice);
+        if ($keepOnRecord) {
+            redirect('/books/'.$book['id'].'/invoices/'.$invoice['id'], ['success' => 'Online order cancelled. It stays on record, with its stock returned and payments voided.']);
+        }
         Database::run('UPDATE invoices SET deleted_at=? WHERE id=?', [now(),$invoice['id']]);
         redirect('/books/'.$book['id'].'/invoices', ['success' => 'Invoice deleted.']);
     }

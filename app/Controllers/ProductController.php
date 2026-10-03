@@ -126,6 +126,7 @@ class ProductController
         $this->saveVariants($productId, $_POST['variants'] ?? []);
         $this->handleCategory($book['id'], $_POST, $productId);
 
+        \App\Services\Integration\Hooks::emit((int)$book['id'], 'product', (int)$productId, 'create');
         redirect('/books/'.$book['id'].'/products', ['success' => '"'.$name.'" added. Code: '.$code.' | Barcode: '.$userBarcode]);
     }
 
@@ -169,6 +170,7 @@ class ProductController
         Database::run('DELETE FROM product_variants WHERE product_id=?', [$product['id']]);
         $this->saveVariants($product['id'], $_POST['variants'] ?? []);
 
+        \App\Services\Integration\Hooks::emit((int)$book['id'], 'product', (int)$product['id']);
         redirect('/books/'.$book['id'].'/products', ['success' => '"'.$name.'" updated.']);
     }
 
@@ -186,34 +188,20 @@ class ProductController
 
         if ($qty <= 0) redirect('/books/'.$book['id'].'/products', ['error' => 'Quantity must be greater than zero.']);
 
-        $newQty = $type === 'add'
-            ? $product['stock_qty'] + $qty
-            : max(0, $product['stock_qty'] - $qty);
-
-        Database::run('UPDATE products SET stock_qty=? WHERE id=?', [$newQty, $product['id']]);
+        $before = (float)$product['stock_qty'];
+        $applied = $qty;
+        if ($type === 'add') {
+            \App\Services\InventoryService::receive((int)$book['id'], (int)$product['id'], $qty);
+        } else {
+            $applied = min($qty, max(0.0, $before));      // a removal can't take more than is there
+            if ($applied > 0) \App\Services\InventoryService::remove((int)$book['id'], (int)$product['id'], $applied);
+        }
+        $newQty = \App\Services\InventoryService::onHand((int)$book['id'], (int)$product['id']);
         Database::run(
             'INSERT INTO stock_adjustments (product_id,type,qty,note,created_by,created_at) VALUES (?,?,?,?,?,?)',
             [$product['id'],$type,$qty,$note ?: null,auth()['id'],now()]
         );
-
-        // Also adjust latest batch
-        if ($type === 'add') {
-            try {
-                $batchCount = Database::row('SELECT COUNT(*)+1 AS n FROM product_batches WHERE product_id=?', [$product['id']]);
-                $n = (int)($batchCount['n'] ?? 1);
-                $barcode = 'BC'
-                    . str_pad($book['id'], 3, '0', STR_PAD_LEFT)
-                    . str_pad($product['id'], 5, '0', STR_PAD_LEFT)
-                    . str_pad($n, 4, '0', STR_PAD_LEFT);
-                $check = Database::row('SELECT id FROM product_batches WHERE barcode=?', [$barcode]);
-                if ($check) $barcode .= rand(10,99);
-                Database::run(
-                    'INSERT INTO product_batches (product_id,book_id,barcode,buy_price,sell_price,initial_qty,remaining_qty,created_at)
-                     VALUES (?,?,?,?,0,?,?,?)',
-                    [$product['id'], $book['id'], $barcode, $product['buy_price'], $qty, $qty, now()]
-                );
-            } catch (\Throwable $e) {}
-        }
+        if ($applied > 0) \App\Services\Integration\Hooks::stock((int)$book['id'], (int)$product['id'], $type === 'add' ? $applied : -$applied, 'manual_adjustment', $note ?: null);
 
         redirect('/books/'.$book['id'].'/products', [
             'success' => 'Stock updated: "'.$product['name'].'". New qty: '.$newQty
@@ -228,6 +216,7 @@ class ProductController
         if (!book_can($book, 'products', 'delete')) abort_403();
         $product = $this->getProductOrFail($params['product_id'], $book['id']);
         Database::run('UPDATE products SET deleted_at=? WHERE id=?', [now(), $product['id']]);
+        \App\Services\Integration\Hooks::emit((int)$book['id'], 'product', (int)$product['id'], 'archive');
         redirect('/books/'.$book['id'].'/products', ['success' => '"'.$product['name'].'" deleted.']);
     }
 
@@ -244,6 +233,7 @@ class ProductController
             'INSERT INTO categories (book_id,parent_id,name,created_at) VALUES (?,?,?,?)',
             [$book['id'], $parentId, $name, now()]
         );
+        \App\Services\Integration\Hooks::emit((int)$book['id'], 'category', (int)Database::lastId(), 'create');
         redirect('/books/'.$book['id'].'/products', ['success' => 'Category "'.$name.'" created.']);
     }
 
@@ -350,6 +340,7 @@ class ProductController
                 [$bookId, $newCat, now()]);
             $catId = Database::lastId();
             Database::run('UPDATE products SET category_id=? WHERE id=?', [$catId, $productId]);
+            \App\Services\Integration\Hooks::emit($bookId, 'category', (int)$catId, 'create');
         }
     }
 

@@ -129,7 +129,7 @@ ob_start();
                     </a>
                     <?php else: ?>—<?php endif; ?>
                 </td>
-                <td style="padding:10px 14px;font-size:13px;color:var(--text-muted)"><?= date('d M Y', strtotime($r['date'])) ?></td>
+                <td style="padding:10px 14px;font-size:13px;color:var(--text-muted)"><?= fmt_date($r['date']) ?></td>
                 <td style="padding:10px 14px;text-align:right;font-size:13px"><?= $sym.number_format($r['subtotal'],0) ?></td>
                 <td style="padding:10px 14px;text-align:right;font-size:13px;color:var(--red)">
                     <?= $r['discount'] > 0 ? $sym.number_format($r['discount'],0) : '—' ?>

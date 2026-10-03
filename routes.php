@@ -1,5 +1,7 @@
 <?php
 use App\Controllers\AuthController;
+use App\Controllers\IntegrationApiController;
+use App\Controllers\IntegrationController;
 use App\Controllers\DashboardController;
 use App\Controllers\BookController;
 use App\Controllers\EntryController;
@@ -211,6 +213,7 @@ $router->get( '/settings',                     [SettingsController::class, 'inde
 $router->post('/settings/profile',             [SettingsController::class, 'updateProfile']);
 $router->post('/settings/password',            [SettingsController::class, 'updatePassword']);
 $router->post('/settings/preferences',         [SettingsController::class, 'updatePreferences']);
+$router->post('/settings/notifications',       [SettingsController::class, 'updateNotifications']);
 $router->post('/settings/delete-account',      [SettingsController::class, 'deleteAccount']);
 
 // ── User Profile ──────────────────────────────────────────────────────────────
@@ -265,3 +268,33 @@ $router->post('/settings/contact', [SettingsController::class, 'contactUs']);
 // ── Public Profiles ───────────────────────────────────────────────────────────
 $router->get('/user/@{handle}',                [ProfileController::class,         'publicProfile']);
 $router->get('/business/@{handle}',            [BusinessProfileController::class,  'publicProfile']);
+
+// ── Online-store integration ──────────────────────────────────────────────────
+// Machine API (signed, JSON, no session) — called by the website. See app/Services/Integration.
+$router->post('/api/v1/integrations/connect/handshake', [IntegrationApiController::class, 'handshake']);
+$router->post('/api/v1/integrations/connect/rotate',    [IntegrationApiController::class, 'rotate']);
+$router->post('/api/v1/integrations/disconnect',        [IntegrationApiController::class, 'disconnect']);
+$router->post('/api/v1/integrations/events',            [IntegrationApiController::class, 'events']);
+$router->get( '/api/v1/integrations/snapshot/{entity}', [IntegrationApiController::class, 'snapshot']);
+$router->get( '/api/v1/integrations/changes',           [IntegrationApiController::class, 'changes']);
+$router->get( '/api/v1/integrations/status',            [IntegrationApiController::class, 'status']);
+$router->get( '/api/v1/integrations/invoice/{uuid}',     [IntegrationApiController::class, 'invoice']);
+$router->get( '/api/v1/integrations/invoice/{uuid}/pdf', [IntegrationApiController::class, 'invoicePdf']);
+// Book settings → Online store (people, not machines)
+$router->get( '/books/{id}/integrations',                          [IntegrationController::class, 'index']);
+$router->post('/books/{id}/integrations/connect',                  [IntegrationController::class, 'connect']);
+$router->post('/books/{id}/integrations/verify',                   [IntegrationController::class, 'verify']);
+$router->post('/books/{id}/integrations/sync',                     [IntegrationController::class, 'syncNow']);
+$router->post('/books/{id}/integrations/pause',                    [IntegrationController::class, 'pause']);
+$router->post('/books/{id}/integrations/resume',                   [IntegrationController::class, 'resume']);
+$router->post('/books/{id}/integrations/rotate',                   [IntegrationController::class, 'rotate']);
+$router->post('/books/{id}/integrations/disconnect',               [IntegrationController::class, 'disconnect']);
+$router->post('/books/{id}/integrations/remove',                   [IntegrationController::class, 'remove']);
+$router->post('/books/{id}/integrations/settings',                 [IntegrationController::class, 'settings']);
+$router->post('/books/{id}/integrations/import/plan',               [IntegrationController::class, 'importPlan']);
+$router->post('/books/{id}/integrations/import/{bid}/{action}',    [IntegrationController::class, 'importAction']);
+$router->post('/books/{id}/integrations/reconcile',                [IntegrationController::class, 'reconcileNow']);
+$router->post('/books/{id}/integrations/queue/retry',              [IntegrationController::class, 'retry']);
+$router->post('/books/{id}/integrations/queue/discard',            [IntegrationController::class, 'discard']);
+$router->post('/books/{id}/integrations/conflicts/{cid}/resolve',  [IntegrationController::class, 'resolve']);
+$router->post('/books/{id}/invoices/{invoice_id}/fulfilment',      [IntegrationController::class, 'fulfilment']);

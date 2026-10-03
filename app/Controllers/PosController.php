@@ -86,12 +86,13 @@ class PosController
                 [$invoiceId,$item['pid'],$item['itemName'],$item['qty'],$item['price'],$item['lineTot']]
             );
             if ($item['pid']) {
-                Database::run('UPDATE products SET stock_qty=stock_qty-? WHERE id=? AND book_id=?',
-                    [$item['qty'],$item['pid'],$book['id']]);
+                // Through the stock ledger so the FIFO/LIFO cost layers stay in step with stock_qty (POS used to skip them).
+                \App\Services\InventoryService::sell((int)$book['id'], (int)$item['pid'], (float)$item['qty']);
             }
         }
 
         Database::run('UPDATE book_business_details SET invoice_counter=invoice_counter+1 WHERE book_id=?', [$book['id']]);
+        \App\Services\Integration\Hooks::invoiceCreated((int)$invoiceId);
 
         // Redirect to POS receipt
         redirect('/books/'.$book['id'].'/invoices/'.$invoiceId.'?pos=1',

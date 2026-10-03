@@ -97,6 +97,16 @@ ob_start();
                     <?php endforeach; ?>
                 </select>
             </div>
+            <?php if (\App\Services\Integration\Hooks::active((int)$book['id'])): ?>
+            <div class="form-group full">
+                <label style="display:flex;gap:8px;align-items:flex-start;font-weight:600;cursor:pointer">
+                    <input type="checkbox" name="sync_to_store" value="1" style="margin-top:3px">
+                    <span>Also list this sale as an order on the online store
+                        <small style="display:block;font-weight:400;color:var(--text-muted)">Needs a customer with a phone number. Stock and payments then stay in step with the website.</small>
+                    </span>
+                </label>
+            </div>
+            <?php endif; ?>
             <?php else: ?>
             <div class="form-group full">
                 <label>Supplier</label>

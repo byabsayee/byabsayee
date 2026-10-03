@@ -84,7 +84,7 @@ ob_start();
                 <?= e($log['ip_address'] ?? '—') ?>
             </td>
             <td class="td-muted" style="white-space:nowrap;font-size:12px">
-                <?= e(date('d M Y', strtotime($log['created_at']))) ?><br>
+                <?= e(fmt_date($log['created_at'])) ?><br>
                 <span style="color:var(--text-muted)"><?= e(date('g:i:s a', strtotime($log['created_at']))) ?></span>
             </td>
             <td>

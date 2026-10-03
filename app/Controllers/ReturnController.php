@@ -194,15 +194,9 @@ class ReturnController
                 // Sales return: goods come back → stock goes UP
                 // Purchase return: goods leave → stock goes DOWN
                 if ($type === 'sales_return') {
-                    Database::run(
-                        'UPDATE products SET stock_qty=stock_qty+? WHERE id=? AND book_id=?',
-                        [$item['qty'], $item['pid'], $book['id']]
-                    );
+                    \App\Services\InventoryService::receive((int)$book['id'], (int)$item['pid'], (float)$item['qty']);
                 } else {
-                    Database::run(
-                        'UPDATE products SET stock_qty=GREATEST(0,stock_qty-?) WHERE id=? AND book_id=?',
-                        [$item['qty'], $item['pid'], $book['id']]
-                    );
+                    \App\Services\InventoryService::sell((int)$book['id'], (int)$item['pid'], (float)$item['qty']);   // floors at 0 like before, and draws the cost layers
                 }
             }
         }
@@ -254,6 +248,7 @@ class ReturnController
             "Return recorded — {$returnNo} — " . ($type === 'sales_return' ? 'Sales Return' : 'Purchase Return') . " — {$totalRefund}",
             null, ['return_no'=>$returnNo,'type'=>$type,'total_refund'=>$totalRefund]);
 
+        \App\Services\Integration\Hooks::returnCreated((int)$returnId);
         redirect('/books/'.$book['id'].'/returns', ['success' => 'Return '.$returnNo.' recorded.']);
     }
 
@@ -289,6 +284,8 @@ class ReturnController
             "Return deleted — " . ($return['return_no'] ?? '#'.$return['id']) . " — {$return['total_refund']}",
             ['return_no'=>$return['return_no'],'type'=>$return['type'],'total_refund'=>$return['total_refund']]);
 
+        // Deleting a return must undo its stock effect (it used to leave stock as if the goods were still returned).
+        if (empty($return['deleted_at'])) \App\Services\Integration\Hooks::returnDeleting($return);
         Database::run('UPDATE returns SET deleted_at=? WHERE id=?', [now(), $return['id']]);
         redirect('/books/'.$book['id'].'/returns', ['success' => 'Return deleted.']);
     }

@@ -4,89 +4,88 @@ $fonts = ['DejaVu Sans','DejaVu Serif','DejaVu Sans Mono'];
 $isPersonal = $book['type'] !== 'business';
 ob_start();
 ?>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
-.settings-wrap{display:grid;grid-template-columns:220px 1fr;gap:28px;max-width:960px;align-items:start}
-.settings-nav{position:sticky;top:20px;background:#fff;border:1.5px solid var(--border);border-radius:16px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.06)}
-.settings-nav-book{padding:20px 18px 16px;border-bottom:1.5px solid var(--border);display:flex;align-items:center;gap:12px}
-.book-avatar{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-family:'Outfit',sans-serif;font-size:18px;font-weight:800;color:#fff;flex-shrink:0;transition:background .3s}
-.snb-name{font-family:'Outfit',sans-serif;font-size:14px;font-weight:700;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.snb-type{font-size:10px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
-.stab-list{padding:8px}
-.stab{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:10px;cursor:pointer;font-size:13px;font-weight:500;color:var(--text-muted);transition:all .15s;border:none;background:none;width:100%;text-align:left}
-.stab:hover{background:var(--bg);color:var(--text)}
-.stab.active{background:var(--brand-light);color:var(--brand);font-weight:700}
+.settings-wrap{display:grid;grid-template-columns:220px 1fr;gap:24px;align-items:start}
+.settings-nav{position:sticky;top:20px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.settings-nav-book{padding:16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px}
+.book-avatar{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:#fff;flex-shrink:0;transition:background .3s}
+.snb-name{font-size:14px;font-weight:700;line-height:1.2;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.snb-type{font-size:11px;color:var(--text-muted);font-weight:500;margin-top:2px}
+.stab-list{padding:6px}
+.stab{display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:500;color:var(--text);transition:background .12s;border:none;background:none;width:100%;text-align:left;font-family:inherit}
+.stab:hover{background:var(--hover-bg,rgba(0,0,0,.04))}
+.stab.active{background:var(--brand-light);color:var(--brand);font-weight:600}
 .stab i{width:16px;text-align:center;font-size:13px}
 .stab-badge{margin-left:auto;background:var(--brand);color:#fff;border-radius:20px;font-size:9px;font-weight:800;padding:1px 6px}
 .stab-sep{height:1px;background:var(--border);margin:6px 8px}
-.s-save-btn{margin:8px;width:calc(100% - 16px);padding:10px;background:var(--brand);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:7px;font-family:inherit}
-.s-save-btn:hover{background:var(--brand-dark);transform:translateY(-1px);box-shadow:0 4px 14px rgba(26,107,74,.35)}
+.s-save-btn{margin:8px;width:calc(100% - 16px);padding:10px;background:var(--brand);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:7px;font-family:inherit}
+.s-save-btn:hover{background:var(--brand-dark)}
 .s-save-btn.dirty{animation:psave 1.8s infinite}
-@keyframes psave{0%,100%{box-shadow:0 0 0 0 rgba(26,107,74,.4)}50%{box-shadow:0 0 0 7px rgba(26,107,74,0)}}
+@keyframes psave{0%,100%{box-shadow:0 0 0 0 rgba(26,107,74,.4)}50%{box-shadow:0 0 0 6px rgba(26,107,74,0)}}
 .settings-content{display:flex;flex-direction:column;gap:0}
 .s-sec{display:none;flex-direction:column;gap:18px;animation:fsec .2s ease}
 .s-sec.active{display:flex}
 @keyframes fsec{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
-.sc{background:#fff;border:1.5px solid var(--border);border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.04)}
-.sc-head{padding:18px 22px 14px;border-bottom:1.5px solid var(--border);display:flex;align-items:center;gap:14px}
+.sc{background:var(--card-bg);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.sc-head{padding:20px 24px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px}
 .sc-icon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
-.sc-head h3{font-family:'Outfit',sans-serif;font-size:15px;font-weight:700;line-height:1.2}
-.sc-head p{font-size:12px;color:var(--text-muted);margin-top:2px}
-.sc-body{padding:22px}
+.sc-head h3{font-size:16px;font-weight:700;line-height:1.2;color:var(--text)}
+.sc-head p{font-size:13px;color:var(--text-muted);margin-top:2px}
+.sc-body{padding:24px}
 .sf{margin-bottom:18px}
 .sf:last-child{margin-bottom:0}
-.sf label{display:block;font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:7px}
-.sf input[type=text],.sf input[type=email],.sf select,.sf textarea{width:100%;padding:10px 13px;border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-family:inherit;outline:none;background:#fff;transition:border-color .15s,box-shadow .15s;color:var(--text)}
+.sf label{display:block;font-size:13px;font-weight:600;color:var(--text);margin-bottom:6px}
+.sf input[type=text],.sf input[type=email],.sf select,.sf textarea{width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;outline:none;background:var(--input-bg,var(--bg));transition:border-color .15s,box-shadow .15s;color:var(--text);box-sizing:border-box}
 .sf input:focus,.sf select:focus,.sf textarea:focus{border-color:var(--brand);box-shadow:0 0 0 3px rgba(26,107,74,.12)}
-.sf-hint{font-size:11px;color:var(--text-muted);margin-top:5px;line-height:1.5}
-.sf-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.sf textarea{resize:vertical}
+.sf-hint{font-size:12px;color:var(--text-muted);margin-top:5px;line-height:1.5}
+.sf-row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 .color-wrap{display:flex;align-items:center;gap:12px}
-.cswatch{width:44px;height:44px;border-radius:12px;border:2px solid rgba(0,0,0,.08);cursor:pointer;flex-shrink:0;position:relative;overflow:hidden;transition:transform .15s,box-shadow .15s}
-.cswatch:hover{transform:scale(1.06);box-shadow:0 4px 14px rgba(0,0,0,.18)}
+.cswatch{width:40px;height:40px;border-radius:10px;border:2px solid var(--border);cursor:pointer;flex-shrink:0;position:relative;overflow:hidden;transition:transform .15s}
+.cswatch:hover{transform:scale(1.06)}
 .cswatch input[type=color]{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;border:none;padding:0}
-.chex{font-family:'Courier New',monospace;font-size:13px;font-weight:700;letter-spacing:.5px}
-.cname{font-size:11px;color:var(--text-muted);margin-top:2px}
-.inv-prev{border-radius:12px;overflow:hidden;border:1.5px solid var(--border);margin-top:10px}
+.chex{font-family:'Courier New',monospace;font-size:13px;font-weight:700;letter-spacing:.5px;color:var(--text)}
+.cname{font-size:12px;color:var(--text-muted);margin-top:2px}
+.inv-prev{border-radius:10px;overflow:hidden;border:1px solid var(--border);margin-top:10px}
 .inv-prev-head{padding:10px 14px;display:flex;justify-content:space-between;align-items:center}
 .inv-prev-head span{color:#fff;font-size:11px;font-weight:700}
-.inv-prev-body{padding:10px 14px;background:#f9f9f9;display:flex;gap:8px}
-.inv-prev-row{flex:1;background:#fff;border-radius:6px;padding:6px 8px}
+.inv-prev-body{padding:10px 14px;background:var(--bg);display:flex;gap:8px}
+.inv-prev-row{flex:1;background:var(--card-bg);border-radius:6px;padding:6px 8px;border:1px solid var(--border)}
 .inv-prev-row .t{font-size:9px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.3px}
-.inv-prev-row .v{font-size:12px;font-weight:700;color:var(--text);font-family:'Outfit',sans-serif}
-.logo-zone{border:2px dashed var(--border);border-radius:12px;padding:20px;text-align:center;cursor:pointer;transition:all .2s;background:var(--bg);position:relative}
+.inv-prev-row .v{font-size:12px;font-weight:700;color:var(--text)}
+.logo-zone{border:2px dashed var(--border);border-radius:10px;padding:20px;text-align:center;cursor:pointer;transition:all .2s;background:var(--bg);position:relative}
 .logo-zone:hover{border-color:var(--brand);background:var(--brand-light)}
 .logo-zone p{font-size:12px;color:var(--text-muted)}
 .logo-zone p strong{color:var(--brand)}
 #logoPreview{max-height:60px;max-width:200px;object-fit:contain;margin:0 auto 8px;display:none}
 .imc-wrap{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.imc{border:2px solid var(--border);border-radius:14px;padding:18px 16px;cursor:pointer;transition:all .2s;position:relative;background:#fff;display:block}
+.imc{border:2px solid var(--border);border-radius:10px;padding:18px 16px;cursor:pointer;transition:all .2s;position:relative;background:var(--card-bg);display:block}
 .imc:hover{border-color:var(--brand);background:var(--brand-light)}
 .imc.sel{border-color:var(--brand);background:var(--brand-light)}
 .imc input[type=radio]{position:absolute;opacity:0}
 .imc-badge{display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:10px;font-size:20px;margin-bottom:10px}
-.imc h4{font-family:'Outfit',sans-serif;font-size:16px;font-weight:800;margin-bottom:3px}
-.imc .imc-sub{font-size:11px;color:var(--text-muted);line-height:1.5}
+.imc h4{font-size:16px;font-weight:700;margin-bottom:3px;color:var(--text)}
+.imc .imc-sub{font-size:12px;color:var(--text-muted);line-height:1.5}
 .imc .imc-ck{position:absolute;top:12px;right:12px;width:20px;height:20px;border-radius:50%;background:var(--brand);display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;opacity:0;transition:opacity .15s}
 .imc.sel .imc-ck{opacity:1}
-.cur-row{display:flex;gap:8px;align-items:center;padding:10px 12px;background:var(--bg);border-radius:10px;border:1.5px solid var(--border);margin-bottom:8px;transition:border-color .15s}
+.cur-row{display:flex;gap:8px;align-items:center;padding:10px 12px;background:var(--bg);border-radius:8px;border:1px solid var(--border);margin-bottom:8px;transition:border-color .15s}
 .cur-row:hover{border-color:var(--border-dark)}
-.cur-row input[type=text]{padding:6px 9px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;outline:none;background:#fff;transition:border-color .15s}
+.cur-row input[type=text]{padding:6px 9px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;outline:none;background:var(--input-bg,var(--card-bg));color:var(--text);transition:border-color .15s}
 .cur-row input:focus{border-color:var(--brand)}
-.def-radio{display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:var(--text-muted);cursor:pointer;white-space:nowrap;padding:5px 8px;border-radius:8px;border:1.5px solid var(--border);transition:all .15s}
+.def-radio{display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:var(--text-muted);cursor:pointer;white-space:nowrap;padding:5px 8px;border-radius:8px;border:1px solid var(--border);transition:all .15s}
 .def-radio:has(input:checked){background:var(--green-bg);color:var(--green);border-color:var(--green)}
 .def-radio input{accent-color:var(--green)}
 .del-btn{width:28px;height:28px;border:none;background:none;cursor:pointer;color:var(--text-muted);font-size:18px;line-height:1;border-radius:6px;transition:all .15s;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .del-btn:hover{background:var(--red-bg);color:var(--red)}
 .mrow{display:flex;gap:8px;align-items:center;margin-bottom:8px}
-.mrow input{flex:1;padding:9px 13px;border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-family:inherit;outline:none;background:#fff;transition:border-color .15s}
+.mrow input{flex:1;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;outline:none;background:var(--input-bg,var(--bg));color:var(--text);transition:border-color .15s;box-sizing:border-box}
 .mrow input:focus{border-color:var(--brand)}
-.pfx-prev{display:inline-flex;align-items:center;border-radius:8px;overflow:hidden;border:1.5px solid var(--border);font-size:12px;font-weight:700;font-family:'Courier New',monospace;margin-top:6px}
+.pfx-prev{display:inline-flex;align-items:center;border-radius:8px;overflow:hidden;border:1px solid var(--border);font-size:12px;font-weight:700;font-family:'Courier New',monospace;margin-top:6px}
 .pfx-prev .pp{background:var(--brand);color:#fff;padding:4px 8px}
 .pfx-prev .pn{background:var(--bg);color:var(--text-muted);padding:4px 8px}
-.dcard{background:#fff;border:2px solid #fecaca;border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(220,38,38,.06)}
-.dcard-head{padding:16px 22px;background:linear-gradient(135deg,#fff5f5,#fff);border-bottom:1.5px solid #fecaca;display:flex;align-items:center;gap:12px}
-.dcard-head h3{font-family:'Outfit',sans-serif;font-size:15px;font-weight:700;color:var(--red)}
+.dcard{background:var(--card-bg);border:1px solid var(--red);border-radius:12px;overflow:hidden}
+.dcard-head{padding:16px 24px;background:var(--red-bg);border-bottom:1px solid var(--red);display:flex;align-items:center;gap:12px}
+.dcard-head h3{font-size:15px;font-weight:700;color:var(--red)}
 @media(max-width:720px){
   .settings-wrap{grid-template-columns:1fr}
   .settings-nav{position:static}
@@ -141,7 +140,7 @@ ob_start();
 <div class="s-sec active" id="sec-general">
   <div class="sc">
     <div class="sc-head">
-      <div class="sc-icon" style="background:#f0fdf4;color:var(--brand)"><i class="fa-solid fa-book"></i></div>
+      <div class="sc-icon" style="background:var(--brand-light);color:var(--brand)"><i class="fa-solid fa-book"></i></div>
       <div><h3>Book Identity</h3><p>Name and colour shown on your dashboard</p></div>
     </div>
     <div class="sc-body">
@@ -161,12 +160,12 @@ ob_start();
         <div style="margin-top:12px;border-radius:12px;overflow:hidden;border:1.5px solid var(--border)">
           <div id="bCardPreview" style="background:<?= e($book['color']??'#1a6b4a') ?>;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;transition:background .3s">
             <div>
-              <div style="font-family:'Outfit',sans-serif;font-size:16px;font-weight:800;color:#fff" id="bCardName"><?= e($book['name']) ?></div>
+              <div style="font-size:16px;font-weight:700;color:#fff" id="bCardName"><?= e($book['name']) ?></div>
               <div style="font-size:11px;color:rgba(255,255,255,.7);margin-top:2px"><?= $book['type']==='business'?'Business Book':'Personal Book' ?></div>
             </div>
             <div style="font-size:22px;opacity:.5"><i class="fa-solid fa-book" style="color: #ffffff;"></i></div>
           </div>
-          <div style="padding:8px 18px;background:#fafafa;font-size:11px;color:var(--text-muted)">Dashboard preview</div>
+          <div style="padding:8px 18px;background:var(--bg);font-size:11px;color:var(--text-muted)">Dashboard preview</div>
         </div>
       </div>
     </div>
@@ -179,7 +178,7 @@ ob_start();
 <div class="s-sec" id="sec-business">
   <div class="sc">
     <div class="sc-head">
-      <div class="sc-icon" style="background:#eff6ff;color:var(--blue)"><i class="fa-solid fa-building"></i></div>
+      <div class="sc-icon" style="background:var(--blue-bg);color:var(--blue)"><i class="fa-solid fa-building"></i></div>
       <div><h3>Business Information</h3><p>Appears on invoices and public documents</p></div>
     </div>
     <div class="sc-body">
@@ -226,7 +225,7 @@ ob_start();
   <!-- Numbering -->
   <div class="sc">
     <div class="sc-head">
-      <div class="sc-icon" style="background:#fffbeb;color:var(--amber)"><i class="fa-solid fa-hashtag"></i></div>
+      <div class="sc-icon" style="background:var(--amber-bg);color:var(--amber)"><i class="fa-solid fa-hashtag"></i></div>
       <div><h3>Invoice Numbering</h3><p>Prefix controls how invoice numbers are formatted</p></div>
     </div>
     <div class="sc-body">
@@ -260,7 +259,7 @@ ob_start();
   <!-- Appearance -->
   <div class="sc">
     <div class="sc-head">
-      <div class="sc-icon" style="background:#fdf4ff;color:#9333ea"><i class="fa-solid fa-palette"></i></div>
+      <div class="sc-icon" style="background:var(--brand-light);color:var(--brand)"><i class="fa-solid fa-palette"></i></div>
       <div><h3>Invoice Appearance</h3><p>Colour and font used on printed invoices</p></div>
     </div>
     <div class="sc-body">
@@ -280,7 +279,7 @@ ob_start();
           <div class="inv-prev-body">
             <div class="inv-prev-row"><div class="t">Invoice No</div><div class="v"><?= e($details['invoice_prefix']??'INV') ?>-000001</div></div>
             <div class="inv-prev-row"><div class="t">Total</div><div class="v" id="iPrevTotal" style="color:<?= e($book['theme_color']??'#1a6b4a') ?>">৳ 5,000</div></div>
-            <div class="inv-prev-row"><div class="t">Status</div><div class="v" style="color:#16a34a">Paid ✓</div></div>
+            <div class="inv-prev-row"><div class="t">Status</div><div class="v" style="color:var(--green)">Paid ✓</div></div>
           </div>
         </div>
       </div>
@@ -298,7 +297,7 @@ ob_start();
   <!-- Inventory method -->
   <div class="sc">
     <div class="sc-head">
-      <div class="sc-icon" style="background:#f0fdf4;color:var(--green)"><i class="fa-solid fa-layer-group"></i></div>
+      <div class="sc-icon" style="background:var(--green-bg);color:var(--green)"><i class="fa-solid fa-layer-group"></i></div>
       <div><h3>Inventory Method</h3><p>Which stock batch is consumed first when making a sale</p></div>
     </div>
     <div class="sc-body">
@@ -306,7 +305,7 @@ ob_start();
       <div class="imc-wrap">
         <label class="imc <?= $cm==='FIFO'?'sel':'' ?>" id="fifoCard" onclick="selMethod('FIFO')">
           <input type="radio" name="inventory_method" value="FIFO" <?= $cm==='FIFO'?'checked':'' ?>>
-          <div class="imc-badge" style="background:#e0f2fe"><i class="fa-solid fa-arrows-spin" style="color: var(--brand);"></i></div>
+          <div class="imc-badge" style="background:var(--blue-bg)"><i class="fa-solid fa-arrows-spin" style="color: var(--brand);"></i></div>
           <h4>FIFO</h4>
           <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--brand);margin-bottom:5px">First In, First Out</div>
           <div class="imc-sub">Oldest purchased stock is sold first. Standard for most retail businesses.</div>
@@ -314,7 +313,7 @@ ob_start();
         </label>
         <label class="imc <?= $cm==='LIFO'?'sel':'' ?>" id="lifoCard" onclick="selMethod('LIFO')">
           <input type="radio" name="inventory_method" value="LIFO" <?= $cm==='LIFO'?'checked':'' ?>>
-          <div class="imc-badge" style="background:#fef3c7"><i class="fa-solid fa-arrows-turn-to-dots" style="color: var(--brand);"></i></div>
+          <div class="imc-badge" style="background:var(--amber-bg)"><i class="fa-solid fa-arrows-turn-to-dots" style="color: var(--brand);"></i></div>
           <h4>LIFO</h4>
           <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--amber);margin-bottom:5px">Last In, First Out</div>
           <div class="imc-sub">Most recently purchased stock is sold first. Common in certain tax strategies.</div>
@@ -327,7 +326,7 @@ ob_start();
   <!-- Footer note -->
   <div class="sc">
     <div class="sc-head">
-      <div class="sc-icon" style="background:#f8fafc;color:var(--text-muted)"><i class="fa-solid fa-align-left"></i></div>
+      <div class="sc-icon" style="background:var(--bg);color:var(--text-muted)"><i class="fa-solid fa-align-left"></i></div>
       <div><h3>Invoice Footer</h3><p>Optional tagline printed at the bottom of every invoice</p></div>
     </div>
     <div class="sc-body">
@@ -344,7 +343,7 @@ ob_start();
 <div class="s-sec" id="sec-currencies">
   <div class="sc">
     <div class="sc-head">
-      <div class="sc-icon" style="background:#fffbeb;color:var(--amber)"><i class="fa-solid fa-coins"></i></div>
+      <div class="sc-icon" style="background:var(--amber-bg);color:var(--amber)"><i class="fa-solid fa-coins"></i></div>
       <div><h3>Currencies</h3><p>The default currency symbol appears next to every amount</p></div>
     </div>
     <div class="sc-body">
@@ -377,7 +376,7 @@ ob_start();
 <div class="s-sec" id="sec-methods">
   <div class="sc">
     <div class="sc-head">
-      <div class="sc-icon" style="background:#f0fdf4;color:var(--green)"><i class="fa-solid fa-truck-fast"></i></div>
+      <div class="sc-icon" style="background:var(--green-bg);color:var(--green)"><i class="fa-solid fa-truck-fast"></i></div>
       <div><h3>Delivery Methods</h3><p>Options in the delivery dropdown on new invoices</p></div>
     </div>
     <div class="sc-body">
@@ -392,7 +391,7 @@ ob_start();
   </div>
   <div class="sc">
     <div class="sc-head">
-      <div class="sc-icon" style="background:#eff6ff;color:var(--blue)"><i class="fa-solid fa-credit-card"></i></div>
+      <div class="sc-icon" style="background:var(--blue-bg);color:var(--blue)"><i class="fa-solid fa-credit-card"></i></div>
       <div><h3>Payment Methods</h3><p>Options in the payment dropdown on new invoices</p></div>
     </div>
     <div class="sc-body">
@@ -413,11 +412,11 @@ ob_start();
 <div class="s-sec" id="sec-danger">
   <div class="dcard">
     <div class="dcard-head">
-      <div style="width:38px;height:38px;border-radius:10px;background:#fef2f2;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">⚠️</div>
+      <div style="width:38px;height:38px;border-radius:10px;background:var(--red-bg);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">⚠️</div>
       <div><h3>Danger Zone</h3><p style="font-size:12px;color:var(--text-muted);margin-top:2px">These actions cannot be undone</p></div>
     </div>
     <div style="padding:22px">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px;background:#fef2f2;border-radius:12px;border:1px solid #fecaca">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px;background:var(--red-bg);border-radius:12px;border:1px solid var(--red)">
         <div>
           <div style="font-weight:700;font-size:14px">Delete "<?= e($book['name']) ?>"</div>
           <div style="font-size:12px;color:var(--text-muted);margin-top:2px">Permanently hides this book — invoices, products, customers, everything.</div>
