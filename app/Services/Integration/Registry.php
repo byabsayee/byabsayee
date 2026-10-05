@@ -9,7 +9,7 @@ final class Registry
         'category' => M\CategoryMapper::class, 'product' => M\ProductMapper::class, 'customer' => M\CustomerMapper::class,
         'order' => M\OrderMapper::class, 'payment' => M\PaymentMapper::class, 'payment_method' => M\PaymentMethodMapper::class,
         'stock_movement' => M\StockMapper::class, 'coupon' => M\CouponMapper::class, 'tax' => M\TaxMapper::class,
-        'delivery_charge' => M\DeliveryMapper::class, 'return' => M\ReturnMapper::class,
+        'delivery_charge' => M\DeliveryMapper::class, 'return' => M\ReturnMapper::class, 'staff' => M\StaffMapper::class,
     ];
 
     /** @return class-string<M\BaseMapper> */

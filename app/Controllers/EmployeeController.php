@@ -203,6 +203,7 @@ class EmployeeController
         );
 
         $empId = (int)\App\Helpers\Database::get()->lastInsertId();
+        \App\Services\Integration\Hooks::emit((int)$book['id'], 'staff', $empId, 'create');
 
         // Auto-save department if new
         if (!empty($_POST['department'])) {
@@ -257,6 +258,7 @@ class EmployeeController
             ]
         );
 
+        \App\Services\Integration\Hooks::emit((int)$book['id'], 'staff', (int)$employee['id']);
         redirect('/books/'.$book['id'].'/employees/'.$employee['id'], ['success' => 'Employee updated.']);
     }
 
@@ -271,6 +273,7 @@ class EmployeeController
         $employee = $this->getEmployeeOrFail($params['employee_id'], $book['id']);
 
         Database::run('UPDATE employees SET deleted_at=? WHERE id=? AND book_id=?', [now(), $employee['id'], $book['id']]);
+        \App\Services\Integration\Hooks::emit((int)$book['id'], 'staff', (int)$employee['id'], 'archive');
 
         redirect('/books/'.$book['id'].'/employees', ['success' => e($employee['name']).' removed.']);
     }
@@ -628,6 +631,7 @@ class EmployeeController
             'UPDATE employees SET status="terminated" WHERE id=? AND book_id=?',
             [$employee['id'], $book['id']]
         );
+        \App\Services\Integration\Hooks::emit((int)$book['id'], 'staff', (int)$employee['id']);
 
         // Revoke book_members access so book disappears from their dashboard
         if ($employee['user_id']) {
@@ -683,6 +687,7 @@ class EmployeeController
             'UPDATE employees SET status="active" WHERE id=? AND book_id=?',
             [$employee['id'], $book['id']]
         );
+        \App\Services\Integration\Hooks::emit((int)$book['id'], 'staff', (int)$employee['id']);
 
         if ($employee['user_id']) {
             Database::run(

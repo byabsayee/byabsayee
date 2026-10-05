@@ -17,7 +17,7 @@ require_once BASE_PATH . '/app/Helpers/helpers.php';
 if (file_exists(BASE_PATH . '/vendor/autoload.php')) require_once BASE_PATH . '/vendor/autoload.php';
 
 use App\Helpers\Database;
-use App\Services\Integration\{Conn, ImportService, Lifecycle, Outbox, Reconcile};
+use App\Services\Integration\{Backfill, Conn, ImportService, Lifecycle, Outbox, Reconcile};
 
 try {
     foreach (Database::query("SELECT * FROM integration_connections WHERE status IN ('active','verifying')") as $c) {
@@ -25,6 +25,7 @@ try {
             if ($c['status'] === 'verifying') {
                 if ((int)$c['verify_attempts'] < 12 && (!$c['next_verify_at'] || $c['next_verify_at'] <= gmdate('Y-m-d H:i:s'))) Lifecycle::verifyAndComplete($c);
             } else {
+                try { Backfill::run($c, 25); } catch (Throwable $e) { error_log('[integration backfill] ' . $e->getMessage()); }
                 Outbox::flush($c, 10);
                 foreach (Database::query("SELECT id FROM sync_import_batches WHERE conn_id=? AND status='running' ORDER BY id", [$c['id']]) as $b) ImportService::step($c, (int)$b['id'], 50);
                 if (Reconcile::due($c)) Reconcile::run($c);                  // hourly drift report; stock drift is corrected with a flagged movement

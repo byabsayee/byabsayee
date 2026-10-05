@@ -11,7 +11,7 @@ class PosController
 
         $products       = Database::query('SELECT id,name,sell_price,stock_qty,unit,product_code FROM products WHERE book_id=? AND deleted_at IS NULL ORDER BY name', [$book['id']]);
         $customers      = Database::query('SELECT id,name,phone FROM customers WHERE book_id=? AND deleted_at IS NULL ORDER BY name', [$book['id']]);
-        $paymentMethods = Database::query('SELECT * FROM invoice_method_options WHERE book_id=? AND type="payment" ORDER BY sort_order', [$book['id']]);
+        $paymentMethods = Database::query('SELECT * FROM invoice_method_options WHERE book_id=? AND type="payment" AND is_active=1 ORDER BY sort_order', [$book['id']]);
         $details        = Database::row('SELECT * FROM book_business_details WHERE book_id=?', [$book['id']]);
         $currencies     = Database::query('SELECT * FROM book_currencies WHERE book_id=? ORDER BY is_default DESC', [$book['id']]);
         $defaultCurrency= $currencies[0] ?? ['symbol'=>'৳','code'=>'BDT'];

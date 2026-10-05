@@ -39,7 +39,7 @@ if ($customer) {
 }
 
 $paymentMethodOpts = \App\Helpers\Database::query(
-    'SELECT * FROM invoice_method_options WHERE book_id=? AND type="payment" ORDER BY sort_order',
+    'SELECT * FROM invoice_method_options WHERE book_id=? AND type="payment" AND is_active=1 ORDER BY sort_order',
     [$book['id']]
 );
 

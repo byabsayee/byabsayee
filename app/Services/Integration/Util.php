@@ -12,14 +12,14 @@ final class Util
     public const MODULE_VERSION = '1.0.0';
     /** What this book can do; unknown capabilities are ignored by the peer. */
     public const CAPABILITIES = ['categories','products','variants','stock','customers','orders','payments',
-        'payment_methods','coupons','taxes','delivery_charges','returns','snapshot','changes','reconcile','invoices'];
-    public const ENTITIES = ['category','product','customer','order','payment','payment_method','stock_movement','coupon','tax','delivery_charge','return'];
+        'payment_methods','coupons','taxes','delivery_charges','returns','snapshot','changes','reconcile','invoices','staff'];
+    public const ENTITIES = ['category','product','customer','order','payment','payment_method','stock_movement','coupon','tax','delivery_charge','return','staff'];
     public const OPS = ['create','update','archive','restore','cancel','void'];
     /** scope => entities it covers */
     public const SCOPE_ENTITIES = [
         'catalog'   => ['category','product'],
         'stock'     => ['stock_movement'],
-        'customers' => ['customer'],
+        'customers' => ['customer','staff'],
         'orders'    => ['order','return'],
         'payments'  => ['payment','payment_method'],
         'money'     => ['coupon','tax','delivery_charge'],

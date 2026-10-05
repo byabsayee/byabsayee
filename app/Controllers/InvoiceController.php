@@ -199,7 +199,7 @@ class InvoiceController
         $suppliers       = Database::query('SELECT id,name,company FROM suppliers WHERE book_id=? AND deleted_at IS NULL ORDER BY name', [$book['id']]);
         $details         = Database::row('SELECT * FROM book_business_details WHERE book_id=?', [$book['id']]);
         $deliveryMethods = Database::query('SELECT * FROM invoice_method_options WHERE book_id=? AND type="delivery" ORDER BY sort_order', [$book['id']]);
-        $paymentMethods  = Database::query('SELECT * FROM invoice_method_options WHERE book_id=? AND type="payment"  ORDER BY sort_order', [$book['id']]);
+        $paymentMethods  = Database::query('SELECT * FROM invoice_method_options WHERE book_id=? AND type="payment" AND is_active=1  ORDER BY sort_order', [$book['id']]);
         $currencies      = Database::query('SELECT * FROM book_currencies WHERE book_id=? ORDER BY is_default DESC, sort_order', [$book['id']]);
 
         $inventoryMethod = $details['inventory_method'] ?? 'FIFO';

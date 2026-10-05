@@ -173,7 +173,7 @@ class BookController
             ? Database::query('SELECT * FROM invoice_method_options WHERE book_id=? AND type="delivery" ORDER BY sort_order',[$book['id']])
             : [];
         $paymentMethods = $book['type'] === 'business'
-            ? Database::query('SELECT * FROM invoice_method_options WHERE book_id=? AND type="payment" ORDER BY sort_order',[$book['id']])
+            ? Database::query('SELECT * FROM invoice_method_options WHERE book_id=? AND type="payment" AND is_active=1 ORDER BY sort_order',[$book['id']])
             : [];
         $currencies = $book['type'] === 'business'
             ? Database::query('SELECT * FROM book_currencies WHERE book_id=? ORDER BY is_default DESC,sort_order',[$book['id']])
@@ -227,9 +227,25 @@ class BookController
                     Database::run('INSERT INTO invoice_method_options (book_id,type,label,sort_order) VALUES (?,?,?,?)',[$book['id'],'delivery',$m,$i]);
             }
             if (isset($_POST['payment_methods'])) {
-                Database::run('DELETE FROM invoice_method_options WHERE book_id=? AND type="payment"',[$book['id']]);
-                foreach (array_filter(array_map('trim',$_POST['payment_methods'])) as $i => $m)
-                    Database::run('INSERT INTO invoice_method_options (book_id,type,label,sort_order) VALUES (?,?,?,?)',[$book['id'],'payment',$m,$i]);
+                // Update in place by label so each method keeps its id (and its link to the website); never delete + re-insert.
+                $want = array_values(array_filter(array_map('trim', (array)$_POST['payment_methods']), fn ($m) => $m !== ''));
+                $have = Database::query('SELECT id,label FROM invoice_method_options WHERE book_id=? AND type="payment"', [$book['id']]);
+                $byLabel = []; foreach ($have as $h) $byLabel[mb_strtolower($h['label'])] = (int)$h['id'];
+                $keep = [];
+                foreach ($want as $i => $m) {
+                    $k = mb_strtolower($m);
+                    if (isset($byLabel[$k])) { $pid = $byLabel[$k]; Database::run('UPDATE invoice_method_options SET sort_order=?, is_active=1 WHERE id=?', [$i, $pid]); }
+                    else { Database::run('INSERT INTO invoice_method_options (book_id,type,label,sort_order) VALUES (?,?,?,?)', [$book['id'], 'payment', $m, $i]); $pid = (int)Database::lastId(); }
+                    $keep[$pid] = true;
+                    \App\Services\Integration\Hooks::emit((int)$book['id'], 'payment_method', $pid);
+                }
+                foreach ($byLabel as $pid) {
+                    if (isset($keep[$pid])) continue;
+                    if (\App\Services\Integration\Hooks::active((int)$book['id'])) {   // the website knows it: switch off, keep the row (past payments refer to it)
+                        Database::run('UPDATE invoice_method_options SET is_active=0 WHERE id=?', [$pid]);
+                        \App\Services\Integration\Hooks::emit((int)$book['id'], 'payment_method', $pid, 'archive');
+                    } else Database::run('DELETE FROM invoice_method_options WHERE id=?', [$pid]);
+                }
             }
 
             // Currencies
