@@ -26,7 +26,7 @@ final class Lifecycle
         if (!in_array($authority, ['book', 'site'], true)) return 'Choose who is authoritative for currency, timezone and tax.';
         $existing = Conn::forBook((int)$book['id']);
         if ($existing && $existing['status'] !== 'revoked') return 'This book is already linked to a website. Disconnect it first.';
-        if ($existing && $existing['site_domain'] !== $host) return 'This book was linked to ' . $existing['site_domain'] . ' before. Remove that old link first (Disconnect → Remove link) to connect a different website.';
+        if ($existing && !self::isOpen($existing) && $existing['site_domain'] !== $host) return 'This book was linked to ' . $existing['site_domain'] . ' before. Remove that old link first (Disconnect → Remove link) to connect a different website.';
         if (($other = Conn::byDomain($host)) && (!$existing || (int)$other['id'] !== (int)$existing['id'])) return $host . ' is already connected to another book. One website connects to exactly one book.';
 
         $pdo = Database::get();
@@ -52,6 +52,57 @@ final class Lifecycle
         return ['conn' => $conn, 'credentials' => ['connection_id' => $conn['connection_id'], 'api_key' => $creds['api_key'], 'secrets' => $creds['secrets'], 'pairing_code' => $code]];
     }
 
+    // ─── one-code pairing ─────────────────────────────────────────────────────
+
+    /** A link created without a website address: the domain is bound when the website pairs (proven by the one-time secret). */
+    public const OPEN_PREFIX = 'open-';
+
+    public static function isOpen(array $conn): bool { return strpos((string)($conn['site_domain'] ?? ''), self::OPEN_PREFIX) === 0; }
+
+    /** The public address of this Byabsayee installation, as the website must call it back. */
+    public static function bookBaseUrl(): string
+    {
+        $u = rtrim((string)(getenv('APP_URL') ?: (function_exists('config') ? config('url', '') : '')), '/');
+        return $u !== '' ? $u : 'https://web.byabsayee.com';
+    }
+
+    /** One string that carries the book address and the one-time pairing secret: BYB1-<base64url(json)>. */
+    public static function encodeConnectionCode(string $pairingCode): string
+    {
+        $json = json_encode(['v' => 1, 'u' => self::bookBaseUrl(), 'c' => $pairingCode], JSON_UNESCAPED_SLASHES);
+        return 'BYB1-' . rtrim(strtr(base64_encode($json), '+/', '-_'), '=');
+    }
+
+    /**
+     * Creates (or re-arms) the link with no website address. Everything else is automatic: the website pastes the code,
+     * the book learns its domain from the handshake, verifies it and activates. The code is single use and expires in 30 minutes.
+     * @return array{conn:array,credentials:array,connection_code:string}|string  an error message on failure
+     */
+    public static function createOpen(array $book, ?int $userId)
+    {
+        $existing = Conn::forBook((int)$book['id']);
+        if ($existing && in_array($existing['status'], ['active', 'paused', 'verifying'], true)) return 'This book is already linked to a website. Disconnect it first.';
+        $pdo = Database::get();
+        $pdo->beginTransaction();
+        try {
+            if ($existing) {
+                $id = (int)$existing['id'];
+                Conn::update($id, ['status' => 'pending', 'last_error' => null, 'verified_at' => null, 'activated_at' => null, 'verify_attempts' => 0, 'next_verify_at' => null, 'created_by' => $userId]);
+            } else {
+                $uuid = Util::uuid4();
+                Database::run('INSERT INTO integration_connections (book_id,connection_id,site_domain,status,authority,scopes,created_by,created_at) VALUES (?,?,?,?,?,?,?,UTC_TIMESTAMP())',
+                    [$book['id'], $uuid, self::OPEN_PREFIX . $uuid, 'pending', 'book', Util::json(Conn::validScopes([])), $userId]);
+                $id = (int)Database::lastId();
+            }
+            $creds = Conn::applyNewCredentials($id);
+            $code = Conn::newPairingCode($id);
+            $pdo->commit();
+        } catch (\Throwable $e) { if ($pdo->inTransaction()) $pdo->rollBack(); return 'Could not create the connection code: ' . $e->getMessage(); }
+        $conn = Conn::find($id);
+        Log::write($id, 'system', 'connect', 'Connection code created. Waiting for the website to paste it.');
+        return ['conn' => $conn, 'credentials' => ['connection_id' => $conn['connection_id'], 'api_key' => $creds['api_key'], 'secrets' => $creds['secrets'], 'pairing_code' => $code], 'connection_code' => self::encodeConnectionCode($code)];
+    }
+
     // ─── step 2: handshake (called by the store) ──────────────────────────────
 
     /**
@@ -66,6 +117,17 @@ final class Lifecycle
         $site = is_array($req['site'] ?? null) ? $req['site'] : [];
         if (!Util::testMode()) {
             $host = strtolower((string)parse_url((string)($site['url'] ?? ''), PHP_URL_HOST));
+            if (self::isOpen($conn)) {
+                // No address was typed in the book: learn it from the website. The one-time secret authorised this pairing,
+                // and the ownership check that follows proves the domain really answers with that secret.
+                $p = Util::parseSiteUrl((string)($site['url'] ?? ''));
+                if (is_string($p)) throw new ApiError('invalid_site', 'The website address is not usable: ' . $p, 400);
+                $other = Conn::byDomain($p['host']);
+                if ($other && (int)$other['id'] !== $cid) throw new ApiError('domain_in_use', $p['host'] . ' is already connected to another book. One website connects to exactly one book.', 409);
+                Conn::update($cid, ['site_domain' => $p['host']]);
+                $conn = Conn::find($cid);
+                $host = $p['host'];
+            }
             if ($host === '' || $host !== $conn['site_domain']) throw new ApiError('domain_mismatch', 'This link was created for ' . $conn['site_domain'] . ', not ' . ($host ?: 'an unknown site') . '.', 409);
         }
         $book = Database::row('SELECT * FROM books WHERE id=?', [$conn['book_id']]);

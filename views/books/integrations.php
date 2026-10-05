@@ -33,13 +33,17 @@ ob_start();
 
 <?php if (!empty($creds)): ?>
 <div class="int-card" style="border-color:#15803d">
-  <h2>Pair the website — shown only once</h2>
-  <p class="sub">In the website's admin go to <b>ERP → Connect</b>, enter this book's address and the pairing code. The code works once and expires in 30 minutes.</p>
-  <label>Book address</label><code class="int-code"><?= e(rtrim(config('url', ''), '/') ?: 'https://YOUR-BOOK-DOMAIN') ?></code>
-  <label style="margin-top:10px;display:block;font-weight:600">Pairing code</label><code class="int-code" style="font-size:1.3rem;letter-spacing:2px"><?= e($creds['pairing_code']) ?></code>
-  <details style="margin-top:12px"><summary>Manual setup (if the code can't be used)</summary>
-    <p class="sub" style="margin-top:8px">Enter these on the website instead. Keep them secret — they won't be shown again.</p>
-    <label style="display:block;font-weight:600">Connection ID</label><code class="int-code"><?= e($creds['connection_id']) ?></code>
+  <h2>Your connection code</h2>
+  <p class="sub">Copy this code and paste it into your website's admin (<b>Accounting link</b>). That is all — the website and this book finish connecting by themselves. The code works once, expires in 30 minutes and is shown only now.</p>
+  <?php if (!empty($creds['connection_code'])): ?>
+  <textarea id="conn-code" class="int-code" readonly rows="4" style="width:100%;resize:none" onclick="this.select()"><?= e($creds['connection_code']) ?></textarea>
+  <p style="margin-top:10px"><button type="button" class="btn btn-primary btn-sm" onclick="var t=document.getElementById('conn-code');t.select();if(navigator.clipboard){navigator.clipboard.writeText(t.value)}else{document.execCommand('copy')};this.textContent='Copied'">Copy code</button></p>
+  <?php endif; ?>
+  <details style="margin-top:12px"><summary>Advanced: enter the details by hand instead</summary>
+    <p class="sub" style="margin-top:8px">Book address and short pairing code for the older, manual form. Keep them secret — they won't be shown again.</p>
+    <label style="display:block;font-weight:600">Book address</label><code class="int-code"><?= e(\App\Services\Integration\Lifecycle::bookBaseUrl()) ?></code>
+    <label style="display:block;font-weight:600;margin-top:8px">Pairing code</label><code class="int-code" style="font-size:1.1rem;letter-spacing:2px"><?= e($creds['pairing_code']) ?></code>
+    <label style="display:block;font-weight:600;margin-top:8px">Connection ID</label><code class="int-code"><?= e($creds['connection_id']) ?></code>
     <label style="display:block;font-weight:600;margin-top:8px">API key</label><code class="int-code"><?= e($creds['api_key']) ?></code>
     <label style="display:block;font-weight:600;margin-top:8px">Secret: website → book</label><code class="int-code"><?= e($creds['secrets']['site_to_book']) ?></code>
     <label style="display:block;font-weight:600;margin-top:8px">Secret: book → website</label><code class="int-code"><?= e($creds['secrets']['book_to_site']) ?></code>
@@ -47,11 +51,13 @@ ob_start();
 </div>
 <?php endif; ?>
 
-<?php if (!$conn || $st === 'revoked'): ?>
+<?php if (!$conn || $st === 'revoked' || ($st === 'pending' && empty($creds))): ?>
 <div class="int-card">
-  <h2><?= $conn ? 'Reconnect ' . e($conn['site_domain']) : 'Connect a website' ?></h2>
-  <p class="sub"><?= $conn ? 'This book was linked to this website before; reconnecting resumes where it left off and nothing is duplicated.' : 'One website connects to exactly one book. The website needs its own HTTPS domain or subdomain (for example <b>shop.example.com</b>).' ?></p>
+  <h2><?= $st === 'pending' ? 'Waiting for your website' : ($conn ? 'Reconnect your website' : 'Connect a website') ?></h2>
+  <p class="sub"><?= $conn && !\App\Services\Integration\Lifecycle::isOpen($conn) ? 'This book was linked to <b>' . e($conn['site_domain']) . '</b> before. A new code reconnects it and nothing is duplicated.' : 'Press the button, copy the code, paste it into your website. Products, stock, customers and orders then stay in step by themselves.' ?></p>
   <?php if (!book_can($book, 'integrations', 'manage')): ?><p>You can view this page but not change it.</p><?php else: ?>
+  <form method="post" action="<?= $base ?>/connect"><?= $csrf ?><button class="btn btn-primary" type="submit"><?= $st === 'pending' ? 'Show a new code' : 'Connect a website' ?></button></form>
+  <details style="margin-top:14px"><summary>Advanced: choose the website address, settings and what syncs</summary>
   <form method="post" action="<?= $base ?>/connect" class="int-form"><?= $csrf ?>
     <label>Website address</label>
     <input type="url" name="site_url" placeholder="https://shop.example.com" value="<?= $conn ? 'https://' . e($conn['site_domain']) : '' ?>" <?= $conn ? 'readonly' : '' ?> required>
@@ -70,9 +76,10 @@ ob_start();
     </details><?php endif; ?>
     <p style="margin-top:16px"><button class="btn btn-primary" type="submit"><?= $conn ? 'Reconnect' : 'Create link & get pairing code' ?></button></p>
   </form>
+  </details>
   <?php endif; ?>
 </div>
-<?php if ($conn && book_can($book, 'integrations', 'manage')): ?>
+<?php if ($conn && !\App\Services\Integration\Lifecycle::isOpen($conn) && book_can($book, 'integrations', 'manage')): ?>
 <div class="int-card"><h2>Connect a different website instead</h2><p class="sub">Removing the link forgets the pairing history with <?= e($conn['site_domain']) ?>. Your products, orders and customers stay in the book.</p>
   <form method="post" action="<?= $base ?>/remove" onsubmit="return confirm('Remove the link to <?= e($conn['site_domain']) ?>? Its pairing history is forgotten; book records stay.')"><?= $csrf ?><button class="btn btn-danger btn-sm" type="submit">Remove link</button></form></div>
 <?php endif; ?>
@@ -80,7 +87,7 @@ ob_start();
 
 <?php if ($conn && $st !== 'revoked'): ?>
 <div class="int-card">
-  <h2><?= e($conn['site_domain']) ?></h2>
+  <h2><?= \App\Services\Integration\Lifecycle::isOpen($conn) ? 'Your website' : e($conn['site_domain']) ?></h2>
   <p class="sub">Authority: <b><?= $conn['authority'] === 'book' ? 'this book' : 'the website' ?></b> · Last sync: <?= $conn['last_sync_at'] ? e(fmt_datetime($conn['last_sync_at'])) . ' UTC' : 'never' ?>
     <?php if (!empty($conn['last_error'])): ?><br><span style="color:#b91c1c">Last problem: <?= e($conn['last_error']) ?></span><?php endif; ?></p>
   <?php if ($counts): ?><div class="int-grid" style="margin-bottom:14px">
@@ -89,17 +96,20 @@ ob_start();
     <div class="int-stat"><b style="color:<?= $counts['open_conflicts'] ? '#b45309' : 'inherit' ?>"><?= $counts['open_conflicts'] ?></b><span>to review</span></div>
     <div class="int-stat"><b><?= $counts['done'] ?></b><span>delivered</span></div></div><?php endif; ?>
   <?php if (in_array($st, ['pending', 'verifying'], true)): ?>
-    <p class="sub"><?= $st === 'pending' ? 'Waiting for the website to pair using the code above. If you lost it, disconnect and reconnect to get a new one.' : 'The website has paired; the book is confirming it controls the domain.' ?></p>
+    <p class="sub"><?= $st === 'pending' ? 'Waiting for the website to paste the connection code.' : 'The website has paired; this book is confirming the address. This takes a few seconds.' ?></p>
   <?php endif; ?>
   <?php if (book_can($book, 'integrations', 'manage')): ?>
   <div class="int-row">
-    <?php if ($st === 'verifying'): ?><form method="post" action="<?= $base ?>/verify"><?= $csrf ?><button class="btn btn-primary btn-sm">Verify now</button></form><?php endif; ?>
-    <?php if ($st === 'active'): ?><form method="post" action="<?= $base ?>/sync"><?= $csrf ?><button class="btn btn-primary btn-sm">Sync now</button></form>
-      <form method="post" action="<?= $base ?>/pause"><?= $csrf ?><button class="btn btn-secondary btn-sm">Pause</button></form><?php endif; ?>
     <?php if ($st === 'paused'): ?><form method="post" action="<?= $base ?>/resume"><?= $csrf ?><button class="btn btn-primary btn-sm">Resume</button></form><?php endif; ?>
-    <?php if (in_array($st, ['active', 'paused'], true)): ?><form method="post" action="<?= $base ?>/rotate" onsubmit="return confirm('Generate new keys and give them to the website now?')"><?= $csrf ?><button class="btn btn-secondary btn-sm">Rotate keys</button></form><?php endif; ?>
     <form method="post" action="<?= $base ?>/disconnect" onsubmit="return confirm('Disconnect from <?= e($conn['site_domain']) ?>? Records stay; you can reconnect the same website later.')"><?= $csrf ?><button class="btn btn-danger btn-sm">Disconnect</button></form>
-  </div><?php endif; ?>
+  </div>
+  <details style="margin-top:12px"><summary>Advanced</summary><div class="int-row" style="margin-top:10px">
+    <?php if ($st === 'verifying'): ?><form method="post" action="<?= $base ?>/verify"><?= $csrf ?><button class="btn btn-secondary btn-sm">Verify now</button></form><?php endif; ?>
+    <?php if ($st === 'active'): ?><form method="post" action="<?= $base ?>/sync"><?= $csrf ?><button class="btn btn-secondary btn-sm">Sync now</button></form>
+      <form method="post" action="<?= $base ?>/pause"><?= $csrf ?><button class="btn btn-secondary btn-sm">Pause</button></form><?php endif; ?>
+    <?php if (in_array($st, ['active', 'paused'], true)): ?><form method="post" action="<?= $base ?>/rotate" onsubmit="return confirm('Generate new keys and give them to the website now?')"><?= $csrf ?><button class="btn btn-secondary btn-sm">Rotate keys</button></form><?php endif; ?>
+  </div></details>
+  <?php endif; ?>
 </div>
 
 <?php if (in_array($st, ['active', 'paused'], true) && book_can($book, 'integrations', 'manage')): $t = $shared['tax']; $d = $shared['delivery']; ?>
@@ -120,6 +130,7 @@ ob_start();
 
 
 <?php if (in_array($st, ['active', 'paused'], true)): $canM = book_can($book, 'integrations', 'manage'); ?>
+<details class="int-card"><summary style="cursor:pointer;font-weight:700">Advanced: reconcile and history import</summary>
 <div class="int-card"><h2>Reconcile</h2>
   <p class="sub">Every hour the book compares itself with the website. A stock difference is fixed with a clearly marked adjustment (the book's quantity wins); anything else is only reported.
     <?= !empty($conn['last_reconcile_at']) ? 'Last run: ' . e(fmt_datetime($conn['last_reconcile_at'])) . ' UTC.' : 'It has not run yet.' ?></p>
@@ -172,6 +183,7 @@ ob_start();
   <?php if ($batches): ?><table class="int-table" style="margin-top:12px"><tr><th>Batch</th><th>Direction</th><th>Status</th><th></th></tr>
     <?php foreach ($batches as $x): ?><tr><td>#<?= (int)$x['id'] ?> <small><?= e(fmt_datetime($x['created_at'])) ?></small></td><td><?= $x['direction'] === 'book_to_store' ? 'book → website' : 'website → book' ?></td><td><?= e(str_replace('_', ' ', $x['status'])) ?></td><td><a href="<?= $base ?>?batch=<?= (int)$x['id'] ?>#import">Open</a></td></tr><?php endforeach; ?></table><?php endif; ?>
 </div>
+</details>
 <?php endif; ?>
 
 <?php if ($conflicts): ?>

@@ -51,6 +51,12 @@ class IntegrationController
     {
         $book = $this->book($p);
         csrf_verify();
+        if (trim((string)($_POST['site_url'] ?? '')) === '') {   // the simple path: no address, just a connection code to paste into the website
+            $r = Lifecycle::createOpen($book, (int)auth()['id']);
+            if (is_string($r)) $this->back($book, ['error' => $r]);
+            $_SESSION['integration_creds'] = $r['credentials'] + ['domain' => $r['conn']['site_domain'], 'connection_code' => $r['connection_code']];
+            $this->back($book, ['success' => 'Your connection code is ready. Paste it into your website — it works once and expires in 30 minutes.']);
+        }
         $tax = null;
         if (($_POST['authority'] ?? 'book') === 'book') {
             $tax = ['enabled' => !empty($_POST['tax_enabled']), 'rate' => number_format(max(0, min(100, (float)($_POST['tax_rate'] ?? 0))), 3, '.', ''),
