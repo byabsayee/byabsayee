@@ -20,6 +20,7 @@ use App\Helpers\Database;
 use App\Services\Integration\{Backfill, Conn, ImportService, Lifecycle, Outbox, Reconcile};
 
 try {
+    Conn::releaseDeletedBooks();   // a deleted book's website link is released so the website can connect elsewhere
     foreach (Database::query("SELECT * FROM integration_connections WHERE status IN ('active','verifying')") as $c) {
         try {
             if ($c['status'] === 'verifying') {

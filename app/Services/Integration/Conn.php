@@ -17,7 +17,22 @@ final class Conn
     public static function find(int $id): ?array { return Database::row('SELECT * FROM integration_connections WHERE id=?', [$id]); }
     public static function forBook(int $bookId): ?array { return Database::row('SELECT * FROM integration_connections WHERE book_id=?', [$bookId]); }
     public static function byUuid(string $uuid): ?array { return Database::row('SELECT * FROM integration_connections WHERE connection_id=?', [$uuid]); }
-    public static function byDomain(string $host): ?array { return Database::row('SELECT * FROM integration_connections WHERE site_domain=?', [strtolower($host)]); }
+    public static function byDomain(string $host): ?array
+    {
+        self::releaseDeletedBooks(strtolower($host));   // a deleted book must never keep a website to itself
+        return Database::row('SELECT * FROM integration_connections WHERE site_domain=?', [strtolower($host)]);
+    }
+
+    /**
+     * Books are only soft-deleted, so their website link used to stay behind and block that website from connecting to any other book.
+     * Removes the links (and their sync bookkeeping, by cascade) of deleted books; optionally only the one for $host.
+     */
+    public static function releaseDeletedBooks(?string $host = null): void
+    {
+        try {
+            Database::run('DELETE c FROM integration_connections c JOIN books b ON b.id=c.book_id WHERE b.deleted_at IS NOT NULL' . ($host !== null ? ' AND c.site_domain=?' : ''), $host !== null ? [$host] : []);
+        } catch (\Throwable $e) { error_log('[integration release] ' . $e->getMessage()); }
+    }
 
     /** Events are queued while a connection is active or paused. Cached per request/book. */
     public static function linkedForBook(int $bookId): ?array

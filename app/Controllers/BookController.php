@@ -278,6 +278,13 @@ class BookController
             }
         }
 
+        // Let the website go first (it is told when reachable), so it can be connected to another book straight away.
+        try {
+            if ($c = \App\Services\Integration\Conn::forBook((int)$book['id'])) {
+                if (in_array($c['status'], ['active', 'paused', 'verifying'], true)) \App\Services\Integration\Lifecycle::disconnect($c);
+                Database::run('DELETE FROM integration_connections WHERE id=?', [$c['id']]);
+            }
+        } catch (\Throwable $e) { error_log('[book delete integration] ' . $e->getMessage()); }
         Database::run('UPDATE books SET deleted_at=? WHERE id=?', [now(), $book['id']]);
         redirect('/books', ['success' => '"'.$book['name'].'" deleted.']);
     }
