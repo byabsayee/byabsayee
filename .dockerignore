@@ -1,0 +1,13 @@
+# Keep secrets, runtime data and VCS noise OUT of the image (COPY . . used to bake .env and DB backups into it)
+.env
+.env.*
+!.env.example
+backups/
+storage/
+uploads/
+keys/
+mariadb/
+*.sql.gz
+*.log
+supervisord.pid
+vendor/

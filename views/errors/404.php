@@ -23,6 +23,5 @@ a:hover { background: #124d35; }
     <p>The page you're looking for doesn't exist.</p>
     <a href="/">Go home</a>
 </div>
-<?php include BASE_PATH . '/views/partials/dev-warning.php'; ?>
 </body>
 </html>

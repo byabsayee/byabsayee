@@ -35,9 +35,13 @@ set_exception_handler(function (\Throwable $e): void {
     while (ob_get_level() > 0) ob_end_clean();
     error_log('Uncaught exception: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
     http_response_code(500);
-    $msg = htmlspecialchars($e->getMessage());
-    $file = htmlspecialchars(basename($e->getFile()));
-    $line = (int)$e->getLine();
+    // Only show technical details when explicitly running in development; otherwise a reference id the owner can find in the log.
+    $ref  = substr(bin2hex(random_bytes(4)), 0, 8);
+    error_log("[error-ref $ref] " . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+    $dev  = (getenv('APP_ENV') === 'development');
+    $msg  = $dev ? htmlspecialchars($e->getMessage()) : 'An unexpected error occurred. Please go back and try again.';
+    $file = $dev ? htmlspecialchars(basename($e->getFile())) : 'ref';
+    $line = $dev ? (int)$e->getLine() : $ref;
     echo "<!DOCTYPE html><html><head><meta charset='utf-8'>
     <title>Error — Byabsayee</title>
     <style>body{font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f8f9fa}
@@ -49,7 +53,7 @@ set_exception_handler(function (\Throwable $e): void {
     <p>$msg</p>
     <p><code>$file : $line</code></p>
     <p style='margin-top:20px'><a href='javascript:history.back()'>← Go back</a></p>
-    </div><div style='position:fixed;left:0;right:0;bottom:0;background:#7c2d12;color:#fff;padding:7px 14px;text-align:center;font:600 12px system-ui,sans-serif'>⚠ IN DEVELOPMENT — Byabsayee is unstable and could lose or destroy data. For testing only; do not use it for real work.</div></body></html>";
+    </div></body></html>";
 });
 
 // ---- 3. AUTOLOADER ----------------------------------------------------------
@@ -123,7 +127,7 @@ session_set_cookie_params([
     'lifetime' => config('session.lifetime'),
     'path'     => '/',
     'domain'   => '',        // blank = current host only, works across devices
-    'secure'   => (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https'),
+    'secure'   => request_is_https(),
     'httponly' => true,
     'samesite' => 'Lax',
 ]);
@@ -141,31 +145,35 @@ if (!empty($_SESSION['user']['timezone'])) {
 }
 
 // ---- 6c. SESSION HEARTBEAT + REVOCATION CHECK ------------------------------
-// 1. Keeps the current session row up-to-date so "Active Sessions" always shows
-//    this device (INSERT … ON DUPLICATE KEY UPDATE, throttled to once/minute).
-// 2. Checks that the session still exists in user_sessions — if it was deleted
-//    by another device via "Sign Out", we log this user out immediately.
+// 1. Every signed-in request checks that this session is still listed in "Active sessions".
+//    If another device removed it ("Sign out" / "Sign out all other devices"), this one is logged out now.
+//    (Previously the heartbeat silently re-created the row, so remote sign-out never took effect.)
+// 2. Keeps last-active up to date, throttled to once a minute.
 if (!empty($_SESSION['user']['id']) && empty($_GET['_error'])) {
-    $now = time();
-    $doPing = empty($_SESSION['_sess_last_ping']) || ($now - $_SESSION['_sess_last_ping']) >= 60;
-    if ($doPing) {
-        try {
-            require_once BASE_PATH . '/app/Helpers/Database.php';
-            // Upsert current session
+    try {
+        require_once BASE_PATH . '/app/Helpers/Database.php';
+        $__row = \App\Helpers\Database::row('SELECT id, last_active_at FROM user_sessions WHERE session_id=?', [session_id()]);
+        if (!$__row && !empty($_SESSION['_sess_tracked'])) {
+            // Row is gone → this session was revoked from another device.
+            session_unset();
+            session_destroy();
+            session_start();
+            $_SESSION['_csrf_token'] = bin2hex(random_bytes(32));
+            redirect('/login', ['error' => 'You were signed out from another device. Please sign in again.']);
+        }
+        if (!$__row) {
+            track_session((int)$_SESSION['user']['id']);          // session that pre-dates tracking: register it once
+        } elseif (empty($_SESSION['_sess_last_ping']) || (time() - $_SESSION['_sess_last_ping']) >= 60) {
             \App\Helpers\Database::run(
-                'INSERT INTO user_sessions (user_id, session_id, ip_address, user_agent, last_active_at)
-                 VALUES (?,?,?,?,NOW())
-                 ON DUPLICATE KEY UPDATE last_active_at=NOW(), ip_address=VALUES(ip_address)',
-                [
-                    $_SESSION['user']['id'],
-                    session_id(),
-                    $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0',
-                    substr($_SERVER['HTTP_USER_AGENT'] ?? 'Unknown', 0, 255),
-                ]
+                'UPDATE user_sessions SET last_active_at=NOW(), ip_address=? WHERE id=?',
+                [$_SERVER['REMOTE_ADDR'] ?? '0.0.0.0', $__row['id']]
             );
-        } catch (\Throwable $e) { /* ignore — table may not exist */ }
-        $_SESSION['_sess_last_ping'] = $now;
-    }
+            $_SESSION['_sess_last_ping'] = time();
+            $_SESSION['_sess_tracked']   = 1;
+        } else {
+            $_SESSION['_sess_tracked']   = 1;
+        }
+    } catch (\Throwable $e) { /* ignore — table may not exist */ }
 }
 
 // ---- 7. HANDLE NGINX ERROR ROUTING -----------------------------------------

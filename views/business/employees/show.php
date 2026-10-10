@@ -1,6 +1,6 @@
 <?php
 $pageTitle = e($employee['name']) . ' — Employees — ' . e($book['name']);
-$isOwner   = $book['user_id'] === auth()['id'];
+$isOwner   = (int)$book['user_id'] === (int)auth()['id'];
 
 $moduleLabels = [
     'invoices'      => ['label'=>'Invoices',      'icon'=>'fa-file-invoice'],
@@ -23,7 +23,7 @@ $moduleLabels = [
     'book_settings' => ['label'=>'Book Settings',  'icon'=>'fa-gear'],
 ];
 $actionLabels = ['view'=>'View','create'=>'Create','edit'=>'Edit','delete'=>'Delete',
-                 'adjust_stock'=>'Adjust Stock','pay'=>'Pay','invite'=>'Invite'];
+                 'adjust_stock'=>'Adjust Stock','pay'=>'Pay','invite'=>'Invite','record_payment'=>'Record Payment','manage_designations'=>'Manage Designations','pay_salary'=>'Pay Salary'];
 
 $currentPerms = [];
 if ($member) {
@@ -167,7 +167,16 @@ ob_start();
                     <div style="font-weight:500"><?= e($sp['period_label'] ?? format_date($sp['created_at'])) ?></div>
                     <div style="color:var(--text-muted)"><?= ucfirst($sp['payment_method']) ?></div>
                 </div>
-                <div style="font-weight:600;color:var(--green)"><?= format_money($sp['amount']) ?></div>
+                <div style="display:flex;align-items:center;gap:8px">
+                    <div style="font-weight:600;color:var(--green)"><?= format_money($sp['amount']) ?></div>
+                    <?php if (book_can($book, 'employees', 'pay_salary')): ?>
+                    <form method="POST" action="/books/<?= $book['id'] ?>/employees/<?= $employee['id'] ?>/salary/<?= $sp['id'] ?>/delete" style="display:inline"
+                          onsubmit="return confirm('Remove this salary payment and its expense?')">
+                        <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
+                        <button class="btn btn-sm btn-secondary" title="Remove payment"><i class="fa-solid fa-trash" style="color:var(--red)"></i></button>
+                    </form>
+                    <?php endif; ?>
+                </div>
             </div>
             <?php endforeach; ?>
             <?php if (count($salaryHistory) > 4): ?>

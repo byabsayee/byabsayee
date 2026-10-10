@@ -74,7 +74,7 @@ ob_start();
     </div>
 
     <p class="terms-note">
-        By registering, you agree to our <a href="/terms">Terms of Service</a> and <a href="/privacy">Privacy Policy</a>.
+        By registering, you agree to our <a href="https://www.byabsayee.com/terms" target="_blank" rel="noopener">Terms of Service</a> and <a href="https://www.byabsayee.com/privacy" target="_blank" rel="noopener">Privacy Policy</a>.
     </p>
 
     <button type="submit" class="btn-primary">Create account</button>

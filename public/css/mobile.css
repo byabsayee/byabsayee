@@ -1,0 +1,266 @@
+/* ============================================================
+   mobile.css — Phase 4: layout shell + phone UI  (Byabsayee ERP)
+   Loaded AFTER app.css. Desktop (>768px) is left alone except
+   for the small additions in the first section.
+   ============================================================ */
+
+:root {
+    --bottombar-h: 60px;
+    --safe-top:    env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* ── Things that only exist on phones: hidden on desktop ─────── */
+.bottom-bar,
+.fab,
+.sidebar-close,
+.mobile-topbar { display: none; }
+
+.table-scroll { overflow-x: auto; max-width: 100%; -webkit-overflow-scrolling: touch; }
+
+/* Flex children must be allowed to shrink or wide content pushes the page sideways */
+.app-main { min-width: 0; }
+.app-content { min-width: 0; }
+
+/* Desktop: the page content gets a comfortable max width on very wide screens */
+@media (min-width: 1500px) {
+    .app-content { max-width: 1400px; width: 100%; margin-left: auto; margin-right: auto; }
+}
+
+/* ============================================================
+   PHONE & SMALL TABLET  (≤ 768px)
+   ============================================================ */
+@media (max-width: 768px) {
+
+    html, body { max-width: 100%; overflow-x: hidden; }
+    body { display: block; }                     /* no flex row: sidebar is out of flow */
+    body.drawer-open { overflow: hidden; }
+
+    /* ── Main area: never offset by the sidebar (JS no longer sets inline margin) ── */
+    .app-main { margin-left: 0 !important; width: 100%; min-height: 100vh; min-height: 100dvh; }
+    .app-content {
+        padding: 14px 14px calc(24px + var(--safe-bottom));
+    }
+    body.has-bottom-bar .app-content {
+        padding-bottom: calc(var(--bottombar-h) + 28px + var(--safe-bottom));
+    }
+
+    /* ── Top bar ─────────────────────────────────────────────── */
+    .mobile-topbar {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: calc(8px + var(--safe-top)) 10px 8px;
+        min-height: calc(var(--topbar-h) + var(--safe-top));
+        background: var(--white);
+        border-bottom: 1px solid var(--border);
+        position: sticky; top: 0; z-index: 120;
+    }
+    .topbar-btn {
+        position: relative;
+        width: 40px; height: 40px; flex-shrink: 0;
+        display: inline-flex; align-items: center; justify-content: center;
+        background: none; border: none; border-radius: 10px;
+        color: var(--text); font-size: 17px; cursor: pointer;
+        text-decoration: none;
+        -webkit-tap-highlight-color: transparent;
+    }
+    .topbar-btn:active { background: var(--hover-bg); }
+    .mobile-title {
+        flex: 1; min-width: 0;
+        font-weight: 700; font-size: 16px;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .mobile-topbar .notif-badge { position: absolute; top: 3px; right: 2px; }
+    .topbar-avatar {
+        width: 32px; height: 32px; border-radius: 50%;
+        background: var(--brand); color: #fff;
+        display: inline-flex; align-items: center; justify-content: center;
+        font-weight: 700; font-size: 13px; overflow: hidden;
+    }
+    .topbar-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+    /* ── Drawer (the sidebar, slid in) ───────────────────────── */
+    .sidebar,
+    .sidebar.collapsed {                         /* desktop "collapsed" must never affect the drawer */
+        width: min(84vw, 320px);
+        transform: translateX(-102%);
+        transition: transform .24s cubic-bezier(.4,0,.2,1);
+        z-index: 300;
+        padding-top: var(--safe-top);
+        padding-bottom: var(--safe-bottom);
+        box-shadow: none;
+        overscroll-behavior: contain;
+    }
+    .sidebar.open { transform: translateX(0); box-shadow: var(--shadow-lg); }
+
+    /* JS never applies .collapsed on phones (see shell code in app.js). Tooltip bubbles are desktop-only: */
+    .sidebar .nav-item::before,
+    .sidebar .nav-item::after { display: none !important; }
+
+    .sidebar-collapse-btn { display: none !important; }   /* collapsing is a desktop idea */
+    .sidebar-close {
+        display: inline-flex;
+        position: absolute; top: calc(10px + var(--safe-top)); right: 10px; z-index: 2;
+        width: 38px; height: 38px; align-items: center; justify-content: center;
+        background: var(--bg); border: 1px solid var(--border); border-radius: 10px;
+        color: var(--text-muted); font-size: 16px; cursor: pointer;
+    }
+    .sidebar .nav-item,
+    .sidebar .nav-sub-item { min-height: 44px; }  /* comfortable thumb targets */
+
+    .sidebar-overlay {
+        display: block;
+        opacity: 0; pointer-events: none;
+        transition: opacity .24s ease;
+        z-index: 250;
+        background: rgba(0,0,0,.45);
+    }
+    .sidebar-overlay.show { opacity: 1; pointer-events: auto; }
+
+    /* ── Bottom bar ──────────────────────────────────────────── */
+    .bottom-bar {
+        display: flex;
+        position: fixed; left: 0; right: 0; bottom: 0; z-index: 190;
+        height: calc(var(--bottombar-h) + var(--safe-bottom));
+        padding-bottom: var(--safe-bottom);
+        background: var(--white);
+        border-top: 1px solid var(--border);
+        box-shadow: 0 -2px 10px rgba(0,0,0,.05);
+    }
+    .bb-item {
+        flex: 1 1 0; min-width: 0;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        gap: 3px;
+        background: none; border: none; cursor: pointer;
+        color: var(--text-muted); text-decoration: none;
+        font: inherit; font-size: 10.5px; font-weight: 600;
+        position: relative;
+        -webkit-tap-highlight-color: transparent;
+    }
+    .bb-item i { font-size: 18px; line-height: 1; }
+    .bb-item span { max-width: 100%; padding: 0 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .bb-item.active { color: var(--brand); }
+    .bb-item.active::before {
+        content: ''; position: absolute; top: 0; left: 28%; right: 28%;
+        height: 3px; border-radius: 0 0 4px 4px; background: var(--brand);
+    }
+    .bb-item:active { background: var(--hover-bg); }
+    .bb-soon {
+        position: absolute; top: 6px; right: calc(50% - 26px);
+        font-size: 8px; font-weight: 700; text-transform: uppercase;
+        padding: 0 4px; border-radius: 999px;
+        background: var(--amber-bg); color: var(--amber);
+    }
+
+    /* ── Floating action button ──────────────────────────────── */
+    .fab {
+        position: fixed; z-index: 185;
+        right: 16px;
+        bottom: calc(16px + var(--safe-bottom));
+        height: 54px; min-width: 54px; padding: 0 18px;
+        display: none; align-items: center; justify-content: center; gap: 8px;
+        background: var(--brand); color: #fff; border: none; border-radius: 27px;
+        font: inherit; font-size: 14px; font-weight: 700;
+        box-shadow: 0 6px 18px rgba(0,0,0,.28);
+        cursor: pointer; -webkit-tap-highlight-color: transparent;
+        transition: transform .15s ease, opacity .15s ease;
+    }
+    .fab i { font-size: 18px; }
+    .fab.ready { display: inline-flex; }
+    .fab:active { transform: scale(.94); }
+    body.has-bottom-bar .fab { bottom: calc(var(--bottombar-h) + 14px + var(--safe-bottom)); }
+    body.drawer-open .fab { opacity: 0; pointer-events: none; }
+    .fab.compact { padding: 0; width: 54px; }
+    .fab.compact .fab-label { display: none; }
+    /* the header button the FAB mirrors is redundant on phones */
+    .fab-source { display: none !important; }
+
+    /* ── Page header ─────────────────────────────────────────── */
+    .page-header { margin-bottom: 14px; gap: 10px; }
+    .page-header h1 { font-size: 18px; }
+    .page-header > div:not(.page-header-left) { display: flex; flex-wrap: wrap; gap: 8px; width: 100%; }
+
+    /* ── Tabs & filter rows scroll sideways instead of wrapping into a mess ── */
+    .tab-nav { overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+    .tab-nav::-webkit-scrollbar { display: none; }
+    .tab-nav > * { flex-shrink: 0; white-space: nowrap; }
+
+    /* ── Tables ──────────────────────────────────────────────── */
+    .table-wrap { border-radius: var(--radius); -webkit-overflow-scrolling: touch; }
+    thead th { padding: 9px 10px; }
+    tbody td { padding: 9px 10px; font-size: 13px; }
+
+    /* ── Forms: 16px inputs stop iOS from zooming on focus ───── */
+    input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]),
+    select, textarea { font-size: 16px !important; min-height: 42px; }
+    .btn { min-height: 40px; }
+    .btn-sm { min-height: 34px; }
+    .form-grid { grid-template-columns: 1fr; }
+
+    /* Inline two/three-column grids written in the views collapse on phones */
+    .app-content [style*="grid-template-columns:1fr 1fr"],
+    .app-content [style*="grid-template-columns: 1fr 1fr"],
+    .app-content [style*="grid-template-columns:1fr 300px"],
+    .app-content [style*="grid-template-columns:2fr 1fr"],
+    .app-content [style*="grid-template-columns:1fr 2fr"],
+    .app-content [style*="grid-template-columns:280px 1fr"],
+    .app-content [style*="grid-template-columns: 1fr 300px"],
+    .app-content [style*="grid-template-columns: 2fr 1fr"],
+    .app-content [style*="grid-template-columns: 1fr 2fr"],
+    .app-content [style*="grid-template-columns: 280px 1fr"] {
+        grid-template-columns: 1fr !important;
+    }
+    .app-content [style*="grid-template-columns:repeat(3,1fr)"],
+    .app-content [style*="grid-template-columns:repeat(4,1fr)"],
+    .app-content [style*="grid-template-columns:1fr 1fr 1fr"],
+    .app-content [style*="grid-template-columns: repeat(3,1fr)"],
+    .app-content [style*="grid-template-columns: repeat(4,1fr)"],
+    .app-content [style*="grid-template-columns: 1fr 1fr 1fr"] {
+        grid-template-columns: 1fr 1fr !important;
+    }
+    .app-content [style*="grid-column"] { grid-column: auto !important; }
+
+    /* ── Modals become bottom sheets ─────────────────────────── */
+    .modal-backdrop { align-items: flex-end; padding: 0; }
+    .modal {
+        max-width: 100% !important;
+        width: 100%;
+        max-height: 92vh; max-height: 92dvh;
+        border-radius: 18px 18px 0 0;
+        animation: sheetUp .22s ease;
+        padding-bottom: var(--safe-bottom);
+    }
+    .modal-title { position: sticky; top: 0; background: var(--white); z-index: 2; }
+    .modal-footer {
+        position: sticky; bottom: 0; background: var(--white);
+        padding-bottom: 12px; margin-bottom: -2px;
+    }
+    .modal-footer .btn { flex: 1; justify-content: center; }
+    @keyframes sheetUp { from { transform: translateY(40px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+    /* ── Notification panel: full-width sheet ────────────────── */
+    .notif-panel { width: 100vw; height: 100vh; height: 100dvh; border-left: none; }
+    .notif-panel-header { padding-top: calc(14px + var(--safe-top)); }
+
+    /* ── Flash messages sit under the top bar, not hidden by it ─ */
+    .flash { font-size: 13px; }
+}
+
+/* ── Very small phones ──────────────────────────────────────── */
+@media (max-width: 380px) {
+    .bb-item { font-size: 10px; }
+    .bb-item i { font-size: 17px; }
+    .app-content { padding-left: 10px; padding-right: 10px; }
+}
+
+/* ── Landscape phones: bottom bar gets slimmer ──────────────── */
+@media (max-width: 900px) and (max-height: 480px) and (orientation: landscape) {
+    :root { --bottombar-h: 48px; }
+    .bb-item { flex-direction: row; gap: 6px; font-size: 11px; }
+    .bb-item.active::before { display: none; }
+}
+
+@media print {
+    .bottom-bar, .fab, .mobile-topbar, .sidebar-overlay { display: none !important; }
+}

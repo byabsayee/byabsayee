@@ -74,33 +74,15 @@ class AuthController
             redirect('/login', ['error' => 'Your account has been suspended. Please contact support.']);
         }
 
-        // --- Login successful: store user in session ---
-        // We store only what we need, not the password hash
-        $_SESSION['user'] = [
-            'id'     => $user['id'],
-            'name'   => $user['name'],
-            'email'  => $user['email'],
-            'avatar' => $user['avatar'] ?? null,
-        ];
+        // --- Login successful: new session id (stops session fixation) + store the user ---
+        session_regenerate_id(true);
+        $_SESSION['user'] = session_user_from_row($user);
 
         // --- Update last login time ---
         Database::run(
             'UPDATE users SET last_login_at = ? WHERE id = ?',
             [now(), $user['id']]
         );
-
-        // --- Record session for active-sessions tracking ---
-        try {
-            $ua     = substr($_SERVER['HTTP_USER_AGENT'] ?? 'Unknown', 0, 255);
-            $ip     = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
-            $sessId = session_id();
-            Database::run(
-                'INSERT INTO user_sessions (user_id, session_id, ip_address, user_agent, last_active_at)
-                 VALUES (?,?,?,?,NOW())
-                 ON DUPLICATE KEY UPDATE last_active_at=NOW(), ip_address=VALUES(ip_address)',
-                [$user['id'], $sessId, $ip, $ua]
-            );
-        } catch (\Throwable $e) { /* table may not exist yet */ }
 
         // --- Remember me: extend session lifetime ---
         if ($remember) {
@@ -137,6 +119,9 @@ class AuthController
                 redirect('/2fa/challenge');
             }
         }
+
+        // --- Record session for active-sessions tracking (only for fully signed-in sessions) ---
+        track_session((int)$user['id']);
 
         redirect('/books');
     }

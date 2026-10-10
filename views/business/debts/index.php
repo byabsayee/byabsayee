@@ -353,8 +353,6 @@ ob_start();
 
 <style>
 .stat-sub{font-size:11px;color:var(--text-muted);margin-top:2px}
-.badge-amber{background:#fff8e1;color:var(--amber,#f59e0b)}
-.badge-gray{background:#f3f4f6;color:#6b7280}
 </style>
 
 <script>

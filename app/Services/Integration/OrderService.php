@@ -219,6 +219,7 @@ final class OrderService
         Database::run('UPDATE invoices SET status="cancelled", fulfilment_status=IF(source IS NULL, fulfilment_status, "cancelled"), paid=0, stock_deducted=0 WHERE id=?', [$invoiceId]);
         Database::run('UPDATE dues SET status="cancelled", updated_at=? WHERE invoice_id=? AND status<>"cancelled"', [now(), $invoiceId]);
         Database::run('DELETE FROM report_entries WHERE source_table="invoices" AND source_id=?', [$invoiceId]);
+        \App\Services\LedgerService::syncPoints($invoiceId);        // a cancelled sale keeps no loyalty points
         ActivityLogger::write((int)$inv['book_id'], null, 'invoice.updated', 'Invoice', $invoiceId, "Invoice cancelled — {$inv['invoice_no']} ({$by})", ['status' => $inv['status']], ['status' => 'cancelled']);
         return true;
     }
@@ -324,10 +325,7 @@ final class OrderService
             [$invoiceId, $amount, mb_substr($label ?: 'Online payment', 0, 60), $localDate, $note ?: null, now(), $paidUtc, $reference ? mb_substr($reference, 0, 120) : null]);
         $pid = Database::lastId();
         self::refreshPaid($inv, (float)$inv['paid'] + $amount);
-        if ($inv['customer_id'] && $inv['type'] === 'sale') {
-            $pts = (int)($amount / 100);
-            if ($pts > 0) Database::run('UPDATE customers SET points=points+? WHERE id=?', [$pts, $inv['customer_id']]);
-        }
+        \App\Services\LedgerService::syncPoints($invoiceId);   // cumulative: 1 point per 100 paid, nothing lost to per-payment rounding
         ActivityLogger::write((int)$inv['book_id'], null, 'invoice.payment', 'Invoice', $invoiceId, "Payment recorded — {$inv['invoice_no']} — {$amount} via " . ($label ?: 'online'), ['paid' => $inv['paid']], ['paid' => (float)$inv['paid'] + $amount]);
         return $pid;
     }
@@ -344,11 +342,7 @@ final class OrderService
     private static function voidRow(array $inv, array $p, bool $refresh): void
     {
         Database::run('UPDATE payments SET status="void" WHERE id=?', [$p['id']]);
-        if ($inv['customer_id'] && $inv['type'] === 'sale') {
-            $pts = (int)((float)$p['amount'] / 100);
-            if ($pts > 0) Database::run('UPDATE customers SET points=GREATEST(0,points-?) WHERE id=?', [$pts, $inv['customer_id']]);
-        }
-        if ($refresh) { $fresh = Database::row('SELECT * FROM invoices WHERE id=?', [$inv['id']]); self::refreshPaid($fresh, (float)$fresh['paid'] - (float)$p['amount']); }
+        if ($refresh) { $fresh = Database::row('SELECT * FROM invoices WHERE id=?', [$inv['id']]); self::refreshPaid($fresh, (float)$fresh['paid'] - (float)$p['amount']); \App\Services\LedgerService::syncPoints((int)$inv['id']); }
     }
 
     public static function voidPayment(int $paymentId): void

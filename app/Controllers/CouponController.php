@@ -55,7 +55,7 @@ class CouponController
         $expiresAt  = null;
 
         if ($expiryType === 'date' && !empty($_POST['expires_at'])) {
-            $expiresAt = date('Y-m-d H:i:s', strtotime($_POST['expires_at']));
+            $expiresAt = ($__ts = strtotime((string)$_POST['expires_at'])) ? date('Y-m-d H:i:s', $__ts) : null;
         }
 
         if (!$name || !$code || $value <= 0)
@@ -97,7 +97,7 @@ class CouponController
         $expiresAt  = null;
 
         if ($expiryType === 'date' && !empty($_POST['expires_at'])) {
-            $expiresAt = date('Y-m-d H:i:s', strtotime($_POST['expires_at']));
+            $expiresAt = ($__ts = strtotime((string)$_POST['expires_at'])) ? date('Y-m-d H:i:s', $__ts) : null;
         }
 
         if (!$name || !$code || $value <= 0)
@@ -187,59 +187,52 @@ class CouponController
         if (!book_can($book, 'coupons', 'view')) abort_403();
         $code     = strtoupper(trim($_GET['code'] ?? ''));
         $subtotal = (float)($_GET['subtotal'] ?? 0);
+        $except   = !empty($_GET['invoice_id']) ? (int)$_GET['invoice_id'] : null;
 
         if (!$code) { echo json_encode(['error'=>'No code provided.']); exit; }
 
-        $coupon = Database::row(
-            'SELECT * FROM coupons WHERE book_id=? AND code=?',
-            [$book['id'], $code]
-        );
-
-        if (!$coupon) { echo json_encode(['error'=>'Coupon not found.']); exit; }
-        if (!$coupon['is_active']) { echo json_encode(['error'=>'This coupon is inactive.']); exit; }
-
-        if ($coupon['expires_at'] && strtotime($coupon['expires_at']) < time()) {
-            echo json_encode(['error'=>'Coupon expired on '.fmt_datetime($coupon['expires_at']).'.']);
-            exit;
-        }
-
-        $discount = $coupon['discount_type'] === 'percent'
-            ? round($subtotal * $coupon['discount_value'] / 100, 2)
-            : min((float)$coupon['discount_value'], $subtotal);
-
+        // Same rules the invoice save applies, so what the screen accepts is exactly what gets saved.
+        $r = self::check((int)$book['id'], $code, $subtotal, $except);
+        if (isset($r['error'])) { echo json_encode(['error'=>$r['error']]); exit; }
+        $coupon = $r['coupon'];
         echo json_encode([
             'ok'             => true,
             'name'           => $coupon['name'],
             'discount_type'  => $coupon['discount_type'],
             'discount_value' => (float)$coupon['discount_value'],
-            'discount'       => $discount,
+            'discount'       => $r['discount'],
             'expires_at'     => $coupon['expires_at'],
         ]);
         exit;
     }
 
-    // Static helper — used by InvoiceController::store()
-    public static function validate(int $bookId, string $code, float $subtotal): ?array
+    /** @return array{error:string}|array{coupon:array,discount:float} — one rule set for the screen and the save */
+    public static function check(int $bookId, string $code, float $subtotal, ?int $exceptInvoiceId = null): array
     {
-        $coupon = Database::row(
-            'SELECT * FROM coupons WHERE book_id=? AND code=? AND is_active=1',
-            [$bookId, strtoupper($code)]
-        );
-        if (!$coupon) return null;
-        if ($coupon['expires_at'] && strtotime($coupon['expires_at']) < time())
-            return ['expired'=>true,'coupon'=>$coupon];
-        // Rules that come from the online store's richer coupons (all optional / zero = no rule)
-        if (!empty($coupon['starts_at']) && strtotime($coupon['starts_at']) > time()) return null;
-        if ((float)($coupon['min_subtotal'] ?? 0) > 0 && $subtotal < (float)$coupon['min_subtotal']) return null;
+        $coupon = Database::row('SELECT * FROM coupons WHERE book_id=? AND code=?', [$bookId, strtoupper($code)]);
+        if (!$coupon) return ['error' => 'Coupon not found.'];
+        if (!$coupon['is_active']) return ['error' => 'This coupon is inactive.'];
+        if ($coupon['expires_at'] && strtotime($coupon['expires_at']) < time()) return ['error' => 'Coupon expired on ' . fmt_datetime($coupon['expires_at']) . '.', 'expired' => true];
+        if (!empty($coupon['starts_at']) && strtotime($coupon['starts_at']) > time()) return ['error' => 'This coupon is not active yet.'];
+        if ((float)($coupon['min_subtotal'] ?? 0) > 0 && $subtotal < (float)$coupon['min_subtotal']) return ['error' => 'This coupon needs a subtotal of at least ' . number_format((float)$coupon['min_subtotal'], 2) . '.'];
         if (!empty($coupon['usage_limit'])) {
-            $used = (int)(Database::row("SELECT COUNT(*) c FROM invoices WHERE book_id=? AND coupon_code=? AND deleted_at IS NULL AND status<>'cancelled'", [$bookId, $coupon['code']])['c'] ?? 0);
-            if ($used >= (int)$coupon['usage_limit']) return null;
+            $sql = "SELECT COUNT(*) c FROM invoices WHERE book_id=? AND coupon_code=? AND deleted_at IS NULL AND status<>'cancelled'" . ($exceptInvoiceId ? ' AND id<>?' : '');
+            $used = (int)(Database::row($sql, $exceptInvoiceId ? [$bookId, $coupon['code'], $exceptInvoiceId] : [$bookId, $coupon['code']])['c'] ?? 0);
+            if ($used >= (int)$coupon['usage_limit']) return ['error' => 'This coupon has reached its usage limit.'];
         }
         $discount = $coupon['discount_type'] === 'percent'
             ? round($subtotal * $coupon['discount_value'] / 100, 2)
             : min((float)$coupon['discount_value'], $subtotal);
         if (!empty($coupon['max_discount'])) $discount = min($discount, (float)$coupon['max_discount']);
-        return ['coupon'=>$coupon,'discount'=>$discount];
+        return ['coupon' => $coupon, 'discount' => $discount];
+    }
+
+    // Static helper — used by InvoiceController::store()/update(); null = not usable, ['expired'=>true] = expired
+    public static function validate(int $bookId, string $code, float $subtotal, ?int $exceptInvoiceId = null): ?array
+    {
+        $r = self::check($bookId, $code, $subtotal, $exceptInvoiceId);
+        if (!empty($r['expired'])) return ['expired' => true];
+        return isset($r['error']) ? null : $r;
     }
 
     private function getCouponOrFail(string $couponId, int $bookId): array

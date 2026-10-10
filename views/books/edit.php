@@ -5,47 +5,7 @@ $isPersonal = $book['type'] !== 'business';
 ob_start();
 ?>
 <style>
-.settings-wrap{display:grid;grid-template-columns:220px 1fr;gap:24px;align-items:start}
-.settings-nav{position:sticky;top:20px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;overflow:hidden}
-.settings-nav-book{padding:16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px}
-.book-avatar{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:#fff;flex-shrink:0;transition:background .3s}
-.snb-name{font-size:14px;font-weight:700;line-height:1.2;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.snb-type{font-size:11px;color:var(--text-muted);font-weight:500;margin-top:2px}
-.stab-list{padding:6px}
-.stab{display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:500;color:var(--text);transition:background .12s;border:none;background:none;width:100%;text-align:left;font-family:inherit}
-.stab:hover{background:var(--hover-bg,rgba(0,0,0,.04))}
-.stab.active{background:var(--brand-light);color:var(--brand);font-weight:600}
-.stab i{width:16px;text-align:center;font-size:13px}
-.stab-badge{margin-left:auto;background:var(--brand);color:#fff;border-radius:20px;font-size:9px;font-weight:800;padding:1px 6px}
-.stab-sep{height:1px;background:var(--border);margin:6px 8px}
-.s-save-btn{margin:8px;width:calc(100% - 16px);padding:10px;background:var(--brand);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:7px;font-family:inherit}
-.s-save-btn:hover{background:var(--brand-dark)}
-.s-save-btn.dirty{animation:psave 1.8s infinite}
-@keyframes psave{0%,100%{box-shadow:0 0 0 0 rgba(26,107,74,.4)}50%{box-shadow:0 0 0 6px rgba(26,107,74,0)}}
-.settings-content{display:flex;flex-direction:column;gap:0}
-.s-sec{display:none;flex-direction:column;gap:18px;animation:fsec .2s ease}
-.s-sec.active{display:flex}
-@keyframes fsec{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
-.sc{background:var(--card-bg);border:1px solid var(--border);border-radius:12px;overflow:hidden}
-.sc-head{padding:20px 24px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px}
-.sc-icon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
-.sc-head h3{font-size:16px;font-weight:700;line-height:1.2;color:var(--text)}
-.sc-head p{font-size:13px;color:var(--text-muted);margin-top:2px}
-.sc-body{padding:24px}
-.sf{margin-bottom:18px}
-.sf:last-child{margin-bottom:0}
-.sf label{display:block;font-size:13px;font-weight:600;color:var(--text);margin-bottom:6px}
-.sf input[type=text],.sf input[type=email],.sf select,.sf textarea{width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;outline:none;background:var(--input-bg,var(--bg));transition:border-color .15s,box-shadow .15s;color:var(--text);box-sizing:border-box}
-.sf input:focus,.sf select:focus,.sf textarea:focus{border-color:var(--brand);box-shadow:0 0 0 3px rgba(26,107,74,.12)}
-.sf textarea{resize:vertical}
-.sf-hint{font-size:12px;color:var(--text-muted);margin-top:5px;line-height:1.5}
-.sf-row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-.color-wrap{display:flex;align-items:center;gap:12px}
-.cswatch{width:40px;height:40px;border-radius:10px;border:2px solid var(--border);cursor:pointer;flex-shrink:0;position:relative;overflow:hidden;transition:transform .15s}
-.cswatch:hover{transform:scale(1.06)}
-.cswatch input[type=color]{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;border:none;padding:0}
-.chex{font-family:'Courier New',monospace;font-size:13px;font-weight:700;letter-spacing:.5px;color:var(--text)}
-.cname{font-size:12px;color:var(--text-muted);margin-top:2px}
+/* page-specific widgets (shell, forms, uploads, colour picker come from settings.css) */
 .inv-prev{border-radius:10px;overflow:hidden;border:1px solid var(--border);margin-top:10px}
 .inv-prev-head{padding:10px 14px;display:flex;justify-content:space-between;align-items:center}
 .inv-prev-head span{color:#fff;font-size:11px;font-weight:700}
@@ -53,24 +13,18 @@ ob_start();
 .inv-prev-row{flex:1;background:var(--card-bg);border-radius:6px;padding:6px 8px;border:1px solid var(--border)}
 .inv-prev-row .t{font-size:9px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.3px}
 .inv-prev-row .v{font-size:12px;font-weight:700;color:var(--text)}
-.logo-zone{border:2px dashed var(--border);border-radius:10px;padding:20px;text-align:center;cursor:pointer;transition:all .2s;background:var(--bg);position:relative}
-.logo-zone:hover{border-color:var(--brand);background:var(--brand-light)}
-.logo-zone p{font-size:12px;color:var(--text-muted)}
-.logo-zone p strong{color:var(--brand)}
-#logoPreview{max-height:60px;max-width:200px;object-fit:contain;margin:0 auto 8px;display:none}
 .imc-wrap{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .imc{border:2px solid var(--border);border-radius:10px;padding:18px 16px;cursor:pointer;transition:all .2s;position:relative;background:var(--card-bg);display:block}
-.imc:hover{border-color:var(--brand);background:var(--brand-light)}
-.imc.sel{border-color:var(--brand);background:var(--brand-light)}
+.imc:hover,.imc.sel{border-color:var(--brand);background:var(--brand-light)}
 .imc input[type=radio]{position:absolute;opacity:0}
 .imc-badge{display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:10px;font-size:20px;margin-bottom:10px}
 .imc h4{font-size:16px;font-weight:700;margin-bottom:3px;color:var(--text)}
 .imc .imc-sub{font-size:12px;color:var(--text-muted);line-height:1.5}
-.imc .imc-ck{position:absolute;top:12px;right:12px;width:20px;height:20px;border-radius:50%;background:var(--brand);display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;opacity:0;transition:opacity .15s}
+.imc .imc-ck{position:absolute;top:12px;right:12px;width:20px;height:20px;border-radius:50%;background:var(--brand);display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;opacity:0;transition:opacity .2s}
 .imc.sel .imc-ck{opacity:1}
 .cur-row{display:flex;gap:8px;align-items:center;padding:10px 12px;background:var(--bg);border-radius:8px;border:1px solid var(--border);margin-bottom:8px;transition:border-color .15s}
 .cur-row:hover{border-color:var(--border-dark)}
-.cur-row input[type=text]{padding:6px 9px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;outline:none;background:var(--input-bg,var(--card-bg));color:var(--text);transition:border-color .15s}
+.cur-row input[type=text]{padding:6px 9px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;outline:none;background:var(--input-bg,var(--card-bg));color:var(--text);transition:border-color .15s;box-sizing:border-box}
 .cur-row input:focus{border-color:var(--brand)}
 .def-radio{display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:var(--text-muted);cursor:pointer;white-space:nowrap;padding:5px 8px;border-radius:8px;border:1px solid var(--border);transition:all .15s}
 .def-radio:has(input:checked){background:var(--green-bg);color:var(--green);border-color:var(--green)}
@@ -78,84 +32,82 @@ ob_start();
 .del-btn{width:28px;height:28px;border:none;background:none;cursor:pointer;color:var(--text-muted);font-size:18px;line-height:1;border-radius:6px;transition:all .15s;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .del-btn:hover{background:var(--red-bg);color:var(--red)}
 .mrow{display:flex;gap:8px;align-items:center;margin-bottom:8px}
-.mrow input{flex:1;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;outline:none;background:var(--input-bg,var(--bg));color:var(--text);transition:border-color .15s;box-sizing:border-box}
+.mrow input{flex:1;min-width:0;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;outline:none;background:var(--input-bg,var(--bg));color:var(--text);transition:border-color .15s;box-sizing:border-box}
 .mrow input:focus{border-color:var(--brand)}
 .pfx-prev{display:inline-flex;align-items:center;border-radius:8px;overflow:hidden;border:1px solid var(--border);font-size:12px;font-weight:700;font-family:'Courier New',monospace;margin-top:6px}
 .pfx-prev .pp{background:var(--brand);color:#fff;padding:4px 8px}
 .pfx-prev .pn{background:var(--bg);color:var(--text-muted);padding:4px 8px}
-.dcard{background:var(--card-bg);border:1px solid var(--red);border-radius:12px;overflow:hidden}
-.dcard-head{padding:16px 24px;background:var(--red-bg);border-bottom:1px solid var(--red);display:flex;align-items:center;gap:12px}
-.dcard-head h3{font-size:15px;font-weight:700;color:var(--red)}
-@media(max-width:720px){
-  .settings-wrap{grid-template-columns:1fr}
-  .settings-nav{position:static}
-  .stab-list{display:flex;overflow-x:auto;gap:4px}
-  .stab{white-space:nowrap;flex-shrink:0}
-  .stab-sep{display:none}
-  .sf-row{grid-template-columns:1fr}
-  .imc-wrap{grid-template-columns:1fr}
-}
+@media(max-width:720px){.imc-wrap{grid-template-columns:1fr}.cur-row{flex-wrap:wrap}}
 </style>
+
+<div class="page-header">
+    <div class="page-header-left">
+        <div class="breadcrumb">
+            <a href="/books/<?= $book['id'] ?>">Dashboard</a> <span>›</span>
+            <span>Book Settings</span>
+        </div>
+        <h1><i class="fa-solid fa-gear" style="color:var(--brand)"></i> Book Settings</h1>
+        <p>Name, invoice look and numbering, currencies and methods for <?= e($book['name']) ?></p>
+    </div>
+</div>
 
 <form action="/books/<?= $book['id'] ?>/edit" method="POST" enctype="multipart/form-data" id="sForm">
 <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
 
-<div class="settings-wrap">
+<div class="st-wrap">
 
 <!-- ══ NAV ══ -->
-<nav class="settings-nav">
-  <div class="settings-nav-book">
-    <div class="book-avatar" id="navAvatar" style="background:<?= e($book['color']??'#1a6b4a') ?>">
+<nav class="st-nav">
+  <div class="st-nav-head">
+    <div class="st-avatar" id="navAvatar" style="background:<?= e($book['color']??'#1a6b4a') ?>">
       <?= mb_strtoupper(mb_substr($book['name'],0,1)) ?>
     </div>
     <div>
-      <div class="snb-name"><?= e($book['name']) ?></div>
-      <div class="snb-type"><?= $book['type']==='business'?'Business':'Personal' ?></div>
+      <div class="st-nav-name"><?= e($book['name']) ?></div>
+      <div class="st-nav-sub"><?= $book['type']==='business'?'Business':'Personal' ?></div>
     </div>
   </div>
-  <div class="stab-list">
-    <button type="button" class="stab active" onclick="sw('general',this)"><i class="fa-solid fa-sliders"></i> General</button>
+      <button type="button" class="st-tab active" onclick="sw('general',this)"><i class="fa-solid fa-sliders"></i> General</button>
     <?php if(!$isPersonal): ?>
-    <button type="button" class="stab" onclick="sw('business',this)"><i class="fa-solid fa-building"></i> Business</button>
-    <button type="button" class="stab" onclick="sw('invoice',this)"><i class="fa-solid fa-file-invoice"></i> Invoice</button>
-    <div class="stab-sep"></div>
-    <button type="button" class="stab" onclick="sw('currencies',this)">
+    <button type="button" class="st-tab" onclick="sw('business',this)"><i class="fa-solid fa-building"></i> Business</button>
+    <button type="button" class="st-tab" onclick="sw('invoice',this)"><i class="fa-solid fa-file-invoice"></i> Invoice</button>
+    <div class="st-sep"></div>
+    <button type="button" class="st-tab" onclick="sw('currencies',this)">
       <i class="fa-solid fa-coins"></i> Currencies
-      <?php if(!empty($currencies)): ?><span class="stab-badge"><?= count($currencies) ?></span><?php endif; ?>
+      <?php if(!empty($currencies)): ?><span class="st-badge"><?= count($currencies) ?></span><?php endif; ?>
     </button>
-    <button type="button" class="stab" onclick="sw('methods',this)"><i class="fa-solid fa-truck-fast"></i> Methods</button>
-    <div class="stab-sep"></div>
-    <a href="/books/<?= $book['id'] ?>/business-profile" class="stab" style="text-decoration:none"><i class="fa-solid fa-id-badge"></i> Public Profile</a>
-    <div class="stab-sep"></div>
+    <button type="button" class="st-tab" onclick="sw('methods',this)"><i class="fa-solid fa-truck-fast"></i> Methods</button>
+    <div class="st-sep"></div>
+    <a href="/books/<?= $book['id'] ?>/business-profile" class="st-tab"><i class="fa-solid fa-id-badge"></i> Public Profile</a>
+    <div class="st-sep"></div>
     <?php endif; ?>
-    <button type="button" class="stab" onclick="sw('danger',this)" style="color:var(--red)"><i class="fa-solid fa-triangle-exclamation"></i> Danger Zone</button>
-  </div>
-  <button type="submit" class="s-save-btn" id="saveBtn"><i class="fa-solid fa-check"></i> Save Changes</button>
+    <button type="button" class="st-tab danger" onclick="sw('danger',this)"><i class="fa-solid fa-triangle-exclamation"></i> Danger Zone</button>
+  <button type="submit" class="st-save" id="saveBtn"><i class="fa-solid fa-check"></i> Save Changes</button>
 </nav>
 
 <!-- ══ CONTENT ══ -->
-<div class="settings-content">
+<div class="st-body">
 
 <!-- GENERAL -->
-<div class="s-sec active" id="sec-general">
-  <div class="sc">
-    <div class="sc-head">
-      <div class="sc-icon" style="background:var(--brand-light);color:var(--brand)"><i class="fa-solid fa-book"></i></div>
-      <div><h3>Book Identity</h3><p>Name and colour shown on your dashboard</p></div>
+<div class="st-sec active" id="sec-general">
+  <div class="st-panel">
+    <div class="st-head">
+      <div class="st-icon"><i class="fa-solid fa-book"></i></div>
+      <div><h2>Book Identity</h2><p class="panel-desc">Name and colour shown on your dashboard</p></div>
     </div>
-    <div class="sc-body">
-      <div class="sf">
+    <div class="st-panel-body">
+      <div class="fg">
         <label>Book Name</label>
         <input type="text" name="name" value="<?= e($book['name']) ?>" required
-               oninput="document.querySelector('.snb-name').textContent=this.value||'…';document.getElementById('navAvatar').textContent=(this.value||'B')[0].toUpperCase();document.getElementById('bCardName').textContent=this.value||'Book';markDirty()">
+               oninput="document.querySelector('.st-nav-name').textContent=this.value||'…';document.getElementById('navAvatar').textContent=(this.value||'B')[0].toUpperCase();document.getElementById('bCardName').textContent=this.value||'Book';markDirty()">
       </div>
-      <div class="sf">
+      <div class="fg">
         <label>Card Colour</label>
-        <div class="color-wrap">
-          <div class="cswatch" style="background:<?= e($book['color']??'#1a6b4a') ?>">
+        <div class="color-pick-row">
+          <div class="color-swatch" style="background:<?= e($book['color']??'#1a6b4a') ?>">
             <input type="color" name="color" value="<?= e($book['color']??'#1a6b4a') ?>" oninput="updBookColor(this.value)">
           </div>
-          <div><div class="chex" id="bColorHex"><?= strtoupper($book['color']??'#1a6b4a') ?></div><div class="cname">Dashboard card accent</div></div>
+          <div><div class="color-hex" id="bColorHex"><?= strtoupper($book['color']??'#1a6b4a') ?></div><div class="color-name">Dashboard card accent</div></div>
         </div>
         <div style="margin-top:12px;border-radius:12px;overflow:hidden;border:1.5px solid var(--border)">
           <div id="bCardPreview" style="background:<?= e($book['color']??'#1a6b4a') ?>;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;transition:background .3s">
@@ -175,31 +127,31 @@ ob_start();
 <?php if(!$isPersonal): ?>
 
 <!-- BUSINESS -->
-<div class="s-sec" id="sec-business">
-  <div class="sc">
-    <div class="sc-head">
-      <div class="sc-icon" style="background:var(--blue-bg);color:var(--blue)"><i class="fa-solid fa-building"></i></div>
-      <div><h3>Business Information</h3><p>Appears on invoices and public documents</p></div>
+<div class="st-sec" id="sec-business">
+  <div class="st-panel">
+    <div class="st-head">
+      <div class="st-icon blue"><i class="fa-solid fa-building"></i></div>
+      <div><h2>Business Information</h2><p class="panel-desc">Appears on invoices and public documents</p></div>
     </div>
-    <div class="sc-body">
-      <div class="sf">
+    <div class="st-panel-body">
+      <div class="fg">
         <label>Business / Shop Name</label>
         <input type="text" name="business_name" value="<?= e($details['business_name']??$book['name']) ?>"
                oninput="document.getElementById('iPrevBiz').textContent=this.value||'Business';markDirty()">
       </div>
-      <div class="sf-row">
-        <div class="sf"><label>Phone</label>
+      <div class="fg-row">
+        <div class="fg"><label>Phone</label>
           <input type="text" name="phone" value="<?= e($book['phone']??$details['phone']??'') ?>" oninput="markDirty()" placeholder="+880 1XXX-XXXXXX">
         </div>
-        <div class="sf"><label>Email</label>
+        <div class="fg"><label>Email</label>
           <input type="email" name="email" value="<?= e($book['email']??'') ?>" oninput="markDirty()" placeholder="shop@example.com">
         </div>
       </div>
-      <div class="sf">
+      <div class="fg">
         <label>Address</label>
         <textarea name="address" rows="3" oninput="markDirty()" placeholder="Street, City, Postcode…"><?= e($book['address']??$details['address']??'') ?></textarea>
       </div>
-      <div class="sf">
+      <div class="fg">
         <label>Business Logo <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-muted)">— PNG/JPG/SVG, max 2 MB</span></label>
         <?php if(!empty($book['logo'])): ?>
         <div style="margin-bottom:10px;display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--bg);border-radius:10px;border:1.5px solid var(--border)">
@@ -208,7 +160,7 @@ ob_start();
         </div>
         <?php endif; ?>
         <div class="logo-zone" id="logoZone" onclick="document.getElementById('logoInput').click()">
-          <img id="logoPreview" src="" alt="">
+          <img class="logo-preview" id="logoPreview" src="" alt="">
           <div id="logoIcon" style="font-size:28px;margin-bottom:6px"><i class="fa-solid fa-image" style="color: var(--brand);"></i></div>
           <p><strong>Click to upload</strong> or drag &amp; drop</p>
           <p style="margin-top:3px;font-size:11px">PNG, JPG, SVG up to 2 MB</p>
@@ -220,17 +172,17 @@ ob_start();
 </div>
 
 <!-- INVOICE -->
-<div class="s-sec" id="sec-invoice">
+<div class="st-sec" id="sec-invoice">
 
   <!-- Numbering -->
-  <div class="sc">
-    <div class="sc-head">
-      <div class="sc-icon" style="background:var(--amber-bg);color:var(--amber)"><i class="fa-solid fa-hashtag"></i></div>
-      <div><h3>Invoice Numbering</h3><p>Prefix controls how invoice numbers are formatted</p></div>
+  <div class="st-panel">
+    <div class="st-head">
+      <div class="st-icon amber"><i class="fa-solid fa-hashtag"></i></div>
+      <div><h2>Invoice Numbering</h2><p class="panel-desc">Prefix controls how invoice numbers are formatted</p></div>
     </div>
-    <div class="sc-body">
-      <div class="sf-row">
-        <div class="sf">
+    <div class="st-panel-body">
+      <div class="fg-row">
+        <div class="fg">
           <label>Sale Invoice Prefix</label>
           <input type="text" name="invoice_prefix" value="<?= e($details['invoice_prefix']??'INV') ?>"
                  style="text-transform:uppercase;font-family:'Courier New',monospace;font-weight:700;letter-spacing:1px"
@@ -241,7 +193,7 @@ ob_start();
             <span class="pn">-<?= str_pad($details['invoice_counter']??1,6,'0',STR_PAD_LEFT) ?></span>
           </div>
         </div>
-        <div class="sf">
+        <div class="fg">
           <label>Purchase Invoice Prefix</label>
           <input type="text" name="invoice_prefix_purchase" value="<?= e($details['invoice_prefix_purchase']??'PUR') ?>"
                  style="text-transform:uppercase;font-family:'Courier New',monospace;font-weight:700;letter-spacing:1px"
@@ -257,19 +209,19 @@ ob_start();
   </div>
 
   <!-- Appearance -->
-  <div class="sc">
-    <div class="sc-head">
-      <div class="sc-icon" style="background:var(--brand-light);color:var(--brand)"><i class="fa-solid fa-palette"></i></div>
-      <div><h3>Invoice Appearance</h3><p>Colour and font used on printed invoices</p></div>
+  <div class="st-panel">
+    <div class="st-head">
+      <div class="st-icon"><i class="fa-solid fa-palette"></i></div>
+      <div><h2>Invoice Appearance</h2><p class="panel-desc">Colour and font used on printed invoices</p></div>
     </div>
-    <div class="sc-body">
-      <div class="sf">
+    <div class="st-panel-body">
+      <div class="fg">
         <label>Invoice Theme Colour</label>
-        <div class="color-wrap">
-          <div class="cswatch" style="background:<?= e($book['theme_color']??'#1a6b4a') ?>">
+        <div class="color-pick-row">
+          <div class="color-swatch" style="background:<?= e($book['theme_color']??'#1a6b4a') ?>">
             <input type="color" name="theme_color" value="<?= e($book['theme_color']??'#1a6b4a') ?>" oninput="updThemeColor(this.value)">
           </div>
-          <div><div class="chex" id="tColorHex"><?= strtoupper($book['theme_color']??'#1a6b4a') ?></div><div class="cname">Invoice header, totals &amp; accents</div></div>
+          <div><div class="color-hex" id="tColorHex"><?= strtoupper($book['theme_color']??'#1a6b4a') ?></div><div class="color-name">Invoice header, totals &amp; accents</div></div>
         </div>
         <div class="inv-prev">
           <div class="inv-prev-head" id="iPrevHead" style="background:<?= e($book['theme_color']??'#1a6b4a') ?>">
@@ -283,7 +235,7 @@ ob_start();
           </div>
         </div>
       </div>
-      <div class="sf" style="margin-top:18px">
+      <div class="fg" style="margin-top:18px">
         <label>Invoice Font</label>
         <select name="invoice_font" onchange="markDirty()">
           <?php foreach($fonts as $f): ?>
@@ -295,12 +247,12 @@ ob_start();
   </div>
 
   <!-- Inventory method -->
-  <div class="sc">
-    <div class="sc-head">
-      <div class="sc-icon" style="background:var(--green-bg);color:var(--green)"><i class="fa-solid fa-layer-group"></i></div>
-      <div><h3>Inventory Method</h3><p>Which stock batch is consumed first when making a sale</p></div>
+  <div class="st-panel">
+    <div class="st-head">
+      <div class="st-icon green"><i class="fa-solid fa-layer-group"></i></div>
+      <div><h2>Inventory Method</h2><p class="panel-desc">Which stock batch is consumed first when making a sale</p></div>
     </div>
-    <div class="sc-body">
+    <div class="st-panel-body">
       <?php $cm = $details['inventory_method']??'FIFO'; ?>
       <div class="imc-wrap">
         <label class="imc <?= $cm==='FIFO'?'sel':'' ?>" id="fifoCard" onclick="selMethod('FIFO')">
@@ -324,13 +276,13 @@ ob_start();
   </div>
 
   <!-- Footer note -->
-  <div class="sc">
-    <div class="sc-head">
-      <div class="sc-icon" style="background:var(--bg);color:var(--text-muted)"><i class="fa-solid fa-align-left"></i></div>
-      <div><h3>Invoice Footer</h3><p>Optional tagline printed at the bottom of every invoice</p></div>
+  <div class="st-panel">
+    <div class="st-head">
+      <div class="st-icon muted"><i class="fa-solid fa-align-left"></i></div>
+      <div><h2>Invoice Footer</h2><p class="panel-desc">Optional tagline printed at the bottom of every invoice</p></div>
     </div>
-    <div class="sc-body">
-      <div class="sf">
+    <div class="st-panel-body">
+      <div class="fg">
         <label>Footer Note</label>
         <textarea name="footer_note" rows="2" placeholder="e.g. Thank you for your business! All sales are final." oninput="markDirty()"><?= e($details['footer_note']??'') ?></textarea>
       </div>
@@ -340,13 +292,13 @@ ob_start();
 </div><!-- /sec-invoice -->
 
 <!-- CURRENCIES -->
-<div class="s-sec" id="sec-currencies">
-  <div class="sc">
-    <div class="sc-head">
-      <div class="sc-icon" style="background:var(--amber-bg);color:var(--amber)"><i class="fa-solid fa-coins"></i></div>
-      <div><h3>Currencies</h3><p>The default currency symbol appears next to every amount</p></div>
+<div class="st-sec" id="sec-currencies">
+  <div class="st-panel">
+    <div class="st-head">
+      <div class="st-icon amber"><i class="fa-solid fa-coins"></i></div>
+      <div><h2>Currencies</h2><p class="panel-desc">The default currency symbol appears next to every amount</p></div>
     </div>
-    <div class="sc-body">
+    <div class="st-panel-body">
       <div style="display:grid;grid-template-columns:60px 50px 1fr auto auto;gap:0 4px;padding:0 4px 6px;font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text-muted);letter-spacing:.4px">
         <span>Code</span><span>Sym</span><span>Name</span><span style="margin-right:8px">Default</span><span></span>
       </div>
@@ -373,13 +325,13 @@ ob_start();
 </div>
 
 <!-- METHODS -->
-<div class="s-sec" id="sec-methods">
-  <div class="sc">
-    <div class="sc-head">
-      <div class="sc-icon" style="background:var(--green-bg);color:var(--green)"><i class="fa-solid fa-truck-fast"></i></div>
-      <div><h3>Delivery Methods</h3><p>Options in the delivery dropdown on new invoices</p></div>
+<div class="st-sec" id="sec-methods">
+  <div class="st-panel">
+    <div class="st-head">
+      <div class="st-icon green"><i class="fa-solid fa-truck-fast"></i></div>
+      <div><h2>Delivery Methods</h2><p class="panel-desc">Options in the delivery dropdown on new invoices</p></div>
     </div>
-    <div class="sc-body">
+    <div class="st-panel-body">
       <div id="deliveryList">
         <?php foreach($deliveryMethods as $m): ?>
         <div class="mrow"><input type="text" name="delivery_methods[]" value="<?= e($m['label']) ?>" oninput="markDirty()">
@@ -389,12 +341,12 @@ ob_start();
       <button type="button" onclick="addM('deliveryList','delivery_methods[]')" class="btn btn-sm btn-secondary" style="margin-top:4px"><i class="fa-solid fa-plus"></i> Add Option</button>
     </div>
   </div>
-  <div class="sc">
-    <div class="sc-head">
-      <div class="sc-icon" style="background:var(--blue-bg);color:var(--blue)"><i class="fa-solid fa-credit-card"></i></div>
-      <div><h3>Payment Methods</h3><p>Options in the payment dropdown on new invoices</p></div>
+  <div class="st-panel">
+    <div class="st-head">
+      <div class="st-icon blue"><i class="fa-solid fa-credit-card"></i></div>
+      <div><h2>Payment Methods</h2><p class="panel-desc">Options in the payment dropdown on new invoices</p></div>
     </div>
-    <div class="sc-body">
+    <div class="st-panel-body">
       <div id="paymentList">
         <?php foreach($paymentMethods as $m): ?>
         <div class="mrow"><input type="text" name="payment_methods[]" value="<?= e($m['label']) ?>" oninput="markDirty()">
@@ -409,34 +361,32 @@ ob_start();
 <?php endif; ?>
 
 <!-- DANGER -->
-<div class="s-sec" id="sec-danger">
-  <div class="dcard">
-    <div class="dcard-head">
-      <div style="width:38px;height:38px;border-radius:10px;background:var(--red-bg);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">⚠️</div>
-      <div><h3>Danger Zone</h3><p style="font-size:12px;color:var(--text-muted);margin-top:2px">These actions cannot be undone</p></div>
+<div class="st-sec" id="sec-danger">
+  <div class="st-panel danger">
+    <div class="st-head">
+      <div class="st-icon red"><i class="fa-solid fa-triangle-exclamation"></i></div>
+      <div><h2>Danger Zone</h2><p class="panel-desc">These actions cannot be undone</p></div>
     </div>
-    <div style="padding:22px">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px;background:var(--red-bg);border-radius:12px;border:1px solid var(--red)">
-        <div>
-          <div style="font-weight:700;font-size:14px">Delete "<?= e($book['name']) ?>"</div>
-          <div style="font-size:12px;color:var(--text-muted);margin-top:2px">Permanently hides this book — invoices, products, customers, everything.</div>
-        </div>
-        <button type="button" class="btn btn-danger" style="white-space:nowrap;flex-shrink:0" onclick="confirmDeleteBook()">
-          <i class="fa-solid fa-trash"></i> Delete Book
-        </button>
+    <div class="st-danger-row">
+      <div>
+        <strong>Delete "<?= e($book['name']) ?>"</strong>
+        <span>Permanently hides this book — invoices, products, customers, everything.</span>
       </div>
+      <button type="button" class="btn btn-danger" style="white-space:nowrap;flex-shrink:0" onclick="confirmDeleteBook()">
+        <i class="fa-solid fa-trash"></i> Delete Book
+      </button>
     </div>
   </div>
 </div>
 
-</div><!-- .settings-content -->
-</div><!-- .settings-wrap -->
+</div><!-- .st-body -->
+</div><!-- .st-wrap -->
 </form>
 
 <script>
 function sw(name,btn){
-  document.querySelectorAll('.s-sec').forEach(s=>s.classList.remove('active'));
-  document.querySelectorAll('.stab').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.st-sec').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.st-tab').forEach(b=>b.classList.remove('active'));
   const s=document.getElementById('sec-'+name);
   if(s)s.classList.add('active');
   if(btn)btn.classList.add('active');
@@ -455,15 +405,15 @@ function updBookColor(v){
   document.getElementById('navAvatar').style.background=v;
   document.getElementById('bCardPreview').style.background=v;
   document.getElementById('bColorHex').textContent=v.toUpperCase();
-  document.querySelectorAll('[name=color]~*,.cswatch').forEach(()=>{});
-  document.querySelector('[name=color]').closest('.cswatch').style.background=v;
+  document.querySelectorAll('[name=color]~*,.color-swatch').forEach(()=>{});
+  document.querySelector('[name=color]').closest('.color-swatch').style.background=v;
 }
 function updThemeColor(v){
   markDirty();
   document.getElementById('tColorHex').textContent=v.toUpperCase();
   document.getElementById('iPrevHead').style.background=v;
   document.getElementById('iPrevTotal').style.color=v;
-  document.querySelector('[name=theme_color]').closest('.cswatch').style.background=v;
+  document.querySelector('[name=theme_color]').closest('.color-swatch').style.background=v;
 }
 function updPfx(id,pfx,num){const e=document.getElementById(id);if(!e)return;e.querySelector('.pp').textContent=pfx||'INV';e.querySelector('.pn').textContent='-'+num;}
 function prevLogo(input){

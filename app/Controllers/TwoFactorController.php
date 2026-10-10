@@ -108,20 +108,11 @@ class TwoFactorController
         }
 
         // ✅ 2FA passed — complete login
-        $_SESSION['user'] = $user;
+        session_regenerate_id(true);
+        $_SESSION['user'] = session_user_from_row($user);
 
         // Record session
-        try {
-            $ua     = substr($_SERVER['HTTP_USER_AGENT'] ?? 'Unknown', 0, 255);
-            $ip     = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
-            $sessId = session_id();
-            Database::run(
-                'INSERT INTO user_sessions (user_id, session_id, ip_address, user_agent, last_active_at)
-                 VALUES (?,?,?,?,NOW())
-                 ON DUPLICATE KEY UPDATE last_active_at=NOW(), ip_address=VALUES(ip_address)',
-                [$user['id'], $sessId, $ip, $ua]
-            );
-        } catch (\Throwable $e) {}
+        track_session((int)$user['id']);
 
         unset($_SESSION['2fa_user_id'], $_SESSION['2fa_methods'], $_SESSION['2fa_chosen_method'],
               $_SESSION['2fa_otp_sent'], $_SESSION['2fa_error']);

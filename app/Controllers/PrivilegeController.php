@@ -9,6 +9,7 @@ class PrivilegeController
     {
         if (guest()) redirect('/login');
         $book       = $this->getBookOrFail($params['id']);
+        if (!book_can($book, 'customers', 'view')) abort_403();
         $privileges = Database::query(
             'SELECT p.*, COUNT(c.id) AS customer_count
              FROM customer_privileges p
@@ -26,6 +27,7 @@ class PrivilegeController
         if (guest()) redirect('/login');
         csrf_verify();
         $book = $this->getBookOrFail($params['id']);
+        if (!book_can($book, 'customers', 'edit')) abort_403();
 
         $name          = trim($_POST['name']           ?? '');
         $discountType  = $_POST['discount_type']       ?? 'percent';
@@ -51,6 +53,7 @@ class PrivilegeController
         if (guest()) redirect('/login');
         csrf_verify();
         $book = $this->getBookOrFail($params['id']);
+        if (!book_can($book, 'customers', 'edit')) abort_403();
         $priv = $this->getPrivOrFail($params['priv_id'], $book['id']);
 
         $name          = trim($_POST['name']           ?? '');
@@ -74,11 +77,21 @@ class PrivilegeController
         if (guest()) redirect('/login');
         csrf_verify();
         $book = $this->getBookOrFail($params['id']);
+        if (!book_can($book, 'customers', 'edit')) abort_403();
         $priv = $this->getPrivOrFail($params['priv_id'], $book['id']);
 
         // Remove privilege from all customers first
-        Database::run('UPDATE customers SET privilege_id=NULL WHERE privilege_id=?', [$priv['id']]);
-        Database::run('DELETE FROM customer_privileges WHERE id=?', [$priv['id']]);
+        $pdo = Database::get();
+        $pdo->beginTransaction();
+        try {
+            Database::run('UPDATE customers SET privilege_id=NULL WHERE privilege_id=?', [$priv['id']]);
+            Database::run('DELETE FROM customer_privilege_assignments WHERE privilege_id=?', [$priv['id']]);
+            Database::run('DELETE FROM customer_privileges WHERE id=?', [$priv['id']]);
+            $pdo->commit();
+        } catch (\Throwable $e) {
+            if ($pdo->inTransaction()) $pdo->rollBack();
+            throw $e;
+        }
 
         redirect('/books/'.$book['id'].'/customers', ['success' => '"'.$priv['name'].'" deleted.']);
     }

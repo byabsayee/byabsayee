@@ -211,7 +211,6 @@ usort($mergedRows, function($a, $b) {
 <style>
 .return-row { background: color-mix(in srgb, var(--amber, #d97706) 4%, transparent); }
 .return-row:hover { background: color-mix(in srgb, var(--amber, #d97706) 9%, transparent) !important; }
-.badge-indigo { background: rgba(99,102,241,.12); color: #6366f1; }
 </style>
 
 <script>

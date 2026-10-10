@@ -114,7 +114,7 @@ class ProfileController
         Database::run($updateUser, $uParams);
 
         // Sync session
-        $_SESSION['user'] = Database::row('SELECT * FROM users WHERE id=?', [$user['id']]);
+        refresh_session_user((int)$user['id']);
 
         redirect('/profile?tab=basic', ['success' => 'Basic info updated.']);
     }
@@ -523,7 +523,7 @@ class ProfileController
             }
             // Enable global 2FA flag
             Database::run('UPDATE users SET two_fa_enabled=1 WHERE id=?', [$user['id']]);
-            $_SESSION['user'] = Database::row('SELECT * FROM users WHERE id=?', [$user['id']]);
+            refresh_session_user((int)$user['id']);
             redirect('/profile?tab=security', ['success' => ucfirst($method) . ' two-factor authentication enabled.']);
         }
 
@@ -541,14 +541,14 @@ class ProfileController
             if ($remaining === 0) {
                 Database::run('UPDATE users SET two_fa_enabled=0, two_fa_method=NULL WHERE id=?', [$user['id']]);
             }
-            $_SESSION['user'] = Database::row('SELECT * FROM users WHERE id=?', [$user['id']]);
+            refresh_session_user((int)$user['id']);
             redirect('/profile?tab=security', ['success' => ucfirst($method) . ' 2FA method removed.']);
         }
 
         if ($action === 'disable_all') {
             try { Database::run('UPDATE user_2fa_methods SET is_enabled=0 WHERE user_id=?', [$user['id']]); } catch (\Throwable $e) {}
             Database::run('UPDATE users SET two_fa_enabled=0, two_fa_method=NULL WHERE id=?', [$user['id']]);
-            $_SESSION['user'] = Database::row('SELECT * FROM users WHERE id=?', [$user['id']]);
+            refresh_session_user((int)$user['id']);
             redirect('/profile?tab=security', ['success' => 'All two-factor authentication methods disabled.']);
         }
 
@@ -598,14 +598,7 @@ class ProfileController
 
                 // 2. Physically destroy the PHP session file so the other browser
                 //    gets logged out on their very next request
-                $currentSessId = session_id();
-                session_write_close();
-                session_id($otherSessId);
-                session_start();
-                $_SESSION = [];
-                session_destroy();
-                session_id($currentSessId);
-                session_start();
+                destroy_session_by_id((string)$otherSessId);
             }
         } catch (\Throwable $e) {
             error_log('[revokeSession] ' . $e->getMessage());
@@ -680,11 +673,13 @@ class ProfileController
     private function invalidateOtherSessions(int $userId): void
     {
         try {
-            Database::run(
-                'DELETE FROM user_sessions WHERE user_id=? AND session_id!=?',
+            $others = Database::query(
+                'SELECT session_id FROM user_sessions WHERE user_id=? AND session_id!=?',
                 [$userId, session_id()]
             );
-        } catch (\Throwable $e) {}
+            Database::run('DELETE FROM user_sessions WHERE user_id=? AND session_id!=?', [$userId, session_id()]);
+            foreach ($others as $o) destroy_session_by_id((string)$o['session_id']);
+        } catch (\Throwable $e) { error_log('[invalidateOtherSessions] ' . $e->getMessage()); }
     }
 
     // ── Generate CV PDF ───────────────────────────────────────────────────────

@@ -18,6 +18,7 @@ class ContactController
         csrf_verify();
 
         $book = $this->getBookOrFail($params['id']);
+        if (!book_can($book, 'contacts', 'create')) abort_403();
 
         $name    = trim($_POST['name'] ?? '');
         $phone   = trim($_POST['phone'] ?? '');
@@ -46,6 +47,7 @@ class ContactController
         if (guest()) redirect('/login');
 
         $book = $this->getBookOrFail($params['id']);
+        if (!book_can($book, 'contacts', 'view')) abort_403();
 
         // Business books get unified contacts view
         if ($book['type'] === 'business') {
@@ -54,7 +56,7 @@ class ContactController
                     COUNT(DISTINCT i.id) AS invoice_count,
                     COALESCE(SUM(i.total),0) AS total_billed
                  FROM customers c
-                 LEFT JOIN invoices i ON i.customer_id=c.id AND i.deleted_at IS NULL
+                 LEFT JOIN invoices i ON i.customer_id=c.id AND i.deleted_at IS NULL AND i.status<>"cancelled"
                  WHERE c.book_id=? AND c.deleted_at IS NULL
                  GROUP BY c.id ORDER BY c.name',
                 [$book['id']]
@@ -65,7 +67,7 @@ class ContactController
                     COUNT(DISTINCT i.id) AS invoice_count,
                     COALESCE(SUM(i.total),0) AS total_billed
                  FROM suppliers s
-                 LEFT JOIN invoices i ON i.supplier_id=s.id AND i.deleted_at IS NULL
+                 LEFT JOIN invoices i ON i.supplier_id=s.id AND i.deleted_at IS NULL AND i.status<>"cancelled"
                  WHERE s.book_id=? AND s.deleted_at IS NULL
                  GROUP BY s.id ORDER BY s.name',
                 [$book['id']]
@@ -109,6 +111,7 @@ class ContactController
         csrf_verify();
 
         $book = $this->getBookOrFail($params['id']);
+        if (!book_can($book, 'contacts', 'edit')) abort_403();
 
         $name    = trim($_POST['name'] ?? '');
         $phone   = trim($_POST['phone'] ?? '');
@@ -126,7 +129,7 @@ class ContactController
              $params['contact_id'], $book['id']]
         );
 
-        redirect('/books/' . $book['id'] . '/contacts', ['success' => e($name) . ' updated.']);
+        redirect('/books/' . $book['id'] . '/contacts', ['success' => $name . ' updated.']);
     }
 
     // =========================================================================
@@ -138,6 +141,7 @@ class ContactController
         csrf_verify();
 
         $book = $this->getBookOrFail($params['id']);
+        if (!book_can($book, 'contacts', 'delete')) abort_403();
 
         Database::run(
             'UPDATE contacts SET deleted_at = ? WHERE id = ? AND book_id = ?',

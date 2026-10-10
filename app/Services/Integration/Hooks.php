@@ -70,36 +70,37 @@ final class Hooks
      */
     public static function invoiceDeleting(array $inv): bool
     {
-        $keep = false;
-        try {
-            $bid = (int)$inv['book_id'];
-            $c = self::conn($bid);
-            $online = self::isOnline($inv);
-            $pdo = Database::get();
-            $pdo->beginTransaction();
-            try {
-                $stockBack = [];
-                if (in_array($inv['type'], ['sale', 'pos'], true)) {
-                    if (!empty($inv['stock_deducted']) && $inv['status'] !== 'cancelled') {
-                        foreach (Database::query('SELECT product_id, SUM(qty) q FROM invoice_items WHERE invoice_id=? AND product_id IS NOT NULL GROUP BY product_id', [$inv['id']]) as $it) $stockBack[(int)$it['product_id']] = (float)$it['q'];
-                    }
-                    OrderService::cancel((int)$inv['id'], 'deleted');   // restocks, voids payments, cancels the due, clears report entries
-                } elseif ($inv['type'] === 'purchase') {
-                    foreach (Database::query('SELECT product_id, SUM(qty) q FROM invoice_items WHERE invoice_id=? AND product_id IS NOT NULL GROUP BY product_id', [$inv['id']]) as $it) {
-                        \App\Services\InventoryService::remove($bid, (int)$it['product_id'], (float)$it['q']);
-                        $stockBack[(int)$it['product_id']] = -(float)$it['q'];
-                    }
-                    try { Database::run("UPDATE debts SET status='cancelled' WHERE invoice_id=?", [$inv['id']]); } catch (\Throwable $e) {}
-                    Database::run('DELETE FROM report_entries WHERE source_table="invoices" AND source_id=?', [$inv['id']]);
+        $bid = (int)$inv['book_id'];
+        $online = self::isOnline($inv);
+        $stockBack = [];
+
+        // The accounting reversal must succeed or the caller's transaction rolls back — errors are NOT swallowed here.
+        Database::transaction(function () use ($inv, $bid, &$stockBack) {
+            if (in_array($inv['type'], ['sale', 'pos'], true)) {
+                if (!empty($inv['stock_deducted']) && $inv['status'] !== 'cancelled') {
+                    foreach (Database::query('SELECT product_id, SUM(qty) q FROM invoice_items WHERE invoice_id=? AND product_id IS NOT NULL GROUP BY product_id', [$inv['id']]) as $it) $stockBack[(int)$it['product_id']] = (float)$it['q'];
                 }
-                $pdo->commit();
-            } catch (\Throwable $e) { if ($pdo->inTransaction()) $pdo->rollBack(); throw $e; }
+                OrderService::cancel((int)$inv['id'], 'deleted');   // restocks, voids payments, cancels the due, clears report entries
+            } elseif ($inv['type'] === 'purchase') {
+                foreach (Database::query('SELECT product_id, SUM(qty) q FROM invoice_items WHERE invoice_id=? AND product_id IS NOT NULL GROUP BY product_id', [$inv['id']]) as $it) {
+                    \App\Services\InventoryService::remove($bid, (int)$it['product_id'], (float)$it['q']);
+                    $stockBack[(int)$it['product_id']] = -(float)$it['q'];
+                }
+                Database::run("UPDATE debts SET status='cancelled', updated_at=? WHERE invoice_id=?", [now(), $inv['id']]);
+                Database::run('DELETE FROM report_entries WHERE source_table="invoices" AND source_id=?', [$inv['id']]);
+            }
+        });
+
+        // Telling the store is best-effort and never blocks the deletion.
+        $keep = false;
+        self::safe(function () use ($inv, $bid, $online, $stockBack, &$keep) {
+            $c = self::conn($bid);
             if ($c) {
                 if ($online && $inv['type'] === 'sale') { Outbox::emit($c, 'order', (int)$inv['id'], 'cancel'); $keep = true; }
-                else foreach ($stockBack as $pid => $q) self::stock($bid, $pid, $q > 0 ? $q : $q, $q > 0 ? 'sale_cancel' : 'manual_adjustment', 'Deleted ' . $inv['invoice_no']);
+                else foreach ($stockBack as $pid => $q) self::stock($bid, $pid, $q, $q > 0 ? 'sale_cancel' : 'manual_adjustment', 'Deleted ' . $inv['invoice_no']);
             } elseif ($online && $inv['type'] === 'sale') $keep = true;
-        } catch (\Throwable $e) { error_log('[integration invoiceDeleting] ' . $e->getMessage()); }
-        return $keep;
+        });
+        return $keep || ($online && $inv['type'] === 'sale');
     }
 
     public static function payment(int $paymentId): void
@@ -125,15 +126,14 @@ final class Hooks
     /** Reverse the stock effect of a deleted return (the screen used to leave stock untouched). */
     public static function returnDeleting(array $r): void
     {
-        self::safe(function () use ($r) {
-            $bid = (int)$r['book_id'];
-            $inv = $r['invoice_id'] ? Database::row('SELECT source, sync_to_store FROM invoices WHERE id=?', [$r['invoice_id']]) : null;
-            foreach (Database::query('SELECT product_id, SUM(qty) q FROM return_items WHERE return_id=? AND product_id IS NOT NULL GROUP BY product_id', [$r['id']]) as $it) {
-                $q = (float)$it['q'];
-                if ($r['type'] === 'sales_return') { \App\Services\InventoryService::remove($bid, (int)$it['product_id'], $q); self::stock($bid, (int)$it['product_id'], -$q, 'manual_adjustment', 'Deleted ' . $r['return_no']); }
-                else { \App\Services\InventoryService::receive($bid, (int)$it['product_id'], $q); self::stock($bid, (int)$it['product_id'], $q, 'manual_adjustment', 'Deleted ' . $r['return_no']); }
-            }
-        });
+        $bid = (int)$r['book_id'];
+        $moves = [];
+        foreach (Database::query('SELECT product_id, SUM(qty) q FROM return_items WHERE return_id=? AND product_id IS NOT NULL GROUP BY product_id', [$r['id']]) as $it) {
+            $q = (float)$it['q']; $pid = (int)$it['product_id'];
+            if ($r['type'] === 'sales_return') { \App\Services\InventoryService::remove($bid, $pid, $q); $moves[$pid] = -$q; }
+            else { \App\Services\InventoryService::receive($bid, $pid, $q); $moves[$pid] = $q; }
+        }
+        self::safe(function () use ($bid, $moves, $r) { foreach ($moves as $pid => $d) self::stock($bid, $pid, $d, 'manual_adjustment', 'Deleted ' . $r['return_no']); });
     }
 
     /** Whether a customer can be sent as an online order (the store insists on a name and a phone). */

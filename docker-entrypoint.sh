@@ -30,12 +30,15 @@ else
     echo "[Byabsayee] Database already set up (${TABLE_COUNT} tables found). Skipping schema import."
 fi
 
-# Integration tables/columns are idempotent: run them on every start so a missed manual step can never leave the sync silently off.
-for m in migrate_integrations migrate_integrations_phase2; do
+# Every migration below is idempotent (checks before it changes anything), so they run on every start:
+# a missed manual step can never leave profiles/2FA/sessions, the online-store sync or newer columns missing.
+for m in migrate_profiles migrate_integrations migrate_integrations_phase2; do
     if [ -f "/Sites/byabsayee/public/$m.php" ]; then
         if php "/Sites/byabsayee/public/$m.php" > "/tmp/$m.log" 2>&1; then echo "[Byabsayee] $m: ok"
         else echo "[Byabsayee] WARNING: $m reported problems:"; tail -n 20 "/tmp/$m.log"; fi
     fi
 done
+if php /Sites/byabsayee/bin/migrate_core.php; then echo "[Byabsayee] migrate_core: ok"
+else echo "[Byabsayee] WARNING: migrate_core reported problems (see lines starting with !)"; fi
 
 exec "$@"

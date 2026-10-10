@@ -78,7 +78,10 @@ ob_start();
     <div style="display:flex;gap:8px;flex-wrap:wrap">
         <a href="/books/<?= $book['id'] ?>/invoices/create?type=sale&customer_id=<?= $customer['id'] ?>" class="btn btn-primary">+ New Invoice</a>
         <button class="btn btn-secondary" data-modal="editCustomerModal">Edit</button>
-        <form method="POST" action="/books/<?= $book['id'] ?>/customers/<?= $customer['id'] ?>/delete" data-confirm="Delete <?= e($customer['name']) ?>?">
+        <?php $__open = \App\Services\LedgerService::openBalance('customer', (int)$customer['id']); ?>
+        <form method="POST" action="/books/<?= $book['id'] ?>/customers/<?= $customer['id'] ?>/delete"
+              data-confirm="<?= e($__open['count'] > 0 ? $customer['name'] . ' still has ' . format_money($__open['amount']) . ' open across ' . $__open['count'] . ' record(s). Delete anyway? The records stay in your books.' : 'Delete ' . $customer['name'] . '?') ?>">
+            <?php if ($__open['count'] > 0): ?><input type="hidden" name="confirm_open" value="1"><?php endif; ?>
             <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
             <button class="btn btn-danger">Delete</button>
         </form>

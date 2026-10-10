@@ -8,14 +8,13 @@ class BookSearchController
     {
         if (guest()) json_response(['error' => 'Unauthorized'], 401);
 
-        $book = Database::row(
-            'SELECT * FROM books WHERE id=? AND user_id=? AND deleted_at IS NULL',
-            [$params['id'], auth()['id']]
-        );
+        // Owners AND team members may search; members only see the modules they are allowed to view.
+        $book = book_for_user($params['id']);
         if (!$book) json_response(['error' => 'Not found'], 404);
+        $can = fn(string $module): bool => book_can($book, $module, 'view');
 
         $q    = trim($_GET['q'] ?? '');
-        $like = '%' . $q . '%';
+        $like = '%' . addcslashes($q, '%_\\') . '%';
 
         if (strlen($q) < 1) json_response(['results' => []]);
 
@@ -24,6 +23,7 @@ class BookSearchController
         if ($book['type'] === 'business') {
             $bookId = $book['id'];
 
+            if ($can('customers')) {
             // Customers
             foreach (Database::query(
                 'SELECT id, name, phone FROM customers
@@ -33,7 +33,9 @@ class BookSearchController
             ) as $c) {
                 $results[] = ['type'=>'Customer','label'=>$c['name'].($c['phone']?' — '.$c['phone']:''),'url'=>'/books/'.$bookId.'/customers/'.$c['id']];
             }
+            }
 
+            if ($can('suppliers')) {
             // Suppliers
             foreach (Database::query(
                 'SELECT id, name, phone, company FROM suppliers
@@ -43,7 +45,9 @@ class BookSearchController
             ) as $s) {
                 $results[] = ['type'=>'Supplier','label'=>$s['name'].($s['company']?' ('.$s['company'].')':''),'url'=>'/books/'.$bookId.'/suppliers/'.$s['id']];
             }
+            }
 
+            if ($can('products')) {
             // Products
             foreach (Database::query(
                 'SELECT id, name, product_code, stock_qty, unit FROM products
@@ -53,7 +57,9 @@ class BookSearchController
             ) as $p) {
                 $results[] = ['type'=>'Product','label'=>$p['name'].' ['.$p['product_code'].'] stock: '.rtrim(rtrim(number_format($p['stock_qty'],3),'0'),'.').' '.$p['unit'],'url'=>'/books/'.$bookId.'/products'];
             }
+            }
 
+            if ($can('invoices')) {
             // Invoices
             foreach (Database::query(
                 'SELECT i.id, i.invoice_no, i.type, i.total, i.status, c.name AS cname, s.name AS sname
@@ -67,7 +73,9 @@ class BookSearchController
                 $party = $inv['cname'] ?? $inv['sname'] ?? '';
                 $results[] = ['type'=>ucfirst($inv['type']).' Invoice','label'=>$inv['invoice_no'].($party?' — '.$party:'').' ('.$inv['status'].')','url'=>'/books/'.$bookId.'/invoices/'.$inv['id']];
             }
+            }
 
+            if ($can('returns')) {
             // Returns
             try {
                 foreach (Database::query(
@@ -84,7 +92,9 @@ class BookSearchController
                     $results[] = ['type'=>'Return','label'=>($ret['return_no']??'#'.$ret['id']).' '.$label.($party?' — '.$party:''),'url'=>'/books/'.$bookId.'/returns/'.$ret['id']];
                 }
             } catch (\Throwable $e) {}
+            }
 
+            if ($can('expenses')) {
             // Expenses
             try {
                 foreach (Database::query(
@@ -96,7 +106,9 @@ class BookSearchController
                     $results[] = ['type'=>'Expense','label'=>$exp['title'].' — '.number_format($exp['amount'],0),'url'=>'/books/'.$bookId.'/expenses'];
                 }
             } catch (\Throwable $e) {}
+            }
 
+            if ($can('dues')) {
             // Dues
             try {
                 foreach (Database::query(
@@ -109,7 +121,9 @@ class BookSearchController
                     $results[] = ['type'=>'Due','label'=>$due['title'].($due['cname']?' ('.$due['cname'].')':'').' — '.$due['status'],'url'=>'/books/'.$bookId.'/dues'];
                 }
             } catch (\Throwable $e) {}
+            }
 
+            if ($can('debts')) {
             // Debts
             try {
                 foreach (Database::query(
@@ -122,19 +136,23 @@ class BookSearchController
                     $results[] = ['type'=>'Debt','label'=>$debt['title'].($debt['sname']?' ('.$debt['sname'].')':'').' — '.$debt['status'],'url'=>'/books/'.$bookId.'/debts'];
                 }
             } catch (\Throwable $e) {}
+            }
 
+            if ($can('coupons')) {
             // Coupons
             try {
                 foreach (Database::query(
                     'SELECT id, name, code, discount_type, discount_value FROM coupons
-                     WHERE book_id=? AND deleted_at IS NULL AND (name LIKE ? OR code LIKE ?)
+                     WHERE book_id=? AND (name LIKE ? OR code LIKE ?)
                      LIMIT 4',
                     [$bookId, $like, $like]
                 ) as $c) {
                     $results[] = ['type'=>'Coupon','label'=>$c['name'].' ['.$c['code'].'] '.($c['discount_type']==='percent'?$c['discount_value'].'%':'৳'.$c['discount_value']).' off','url'=>'/books/'.$bookId.'/coupons'];
                 }
             } catch (\Throwable $e) {}
+            }
 
+            if ($can('employees')) {
             // Employees
             try {
                 foreach (Database::query(
@@ -146,7 +164,9 @@ class BookSearchController
                     $results[] = ['type'=>'Employee','label'=>$emp['name'].($emp['designation_name']?' — '.$emp['designation_name']:''),'url'=>'/books/'.$bookId.'/employees/'.$emp['id']];
                 }
             } catch (\Throwable $e) {}
+            }
 
+            if ($can('funds')) {
             // Funds
             try {
                 foreach (Database::query(
@@ -158,7 +178,9 @@ class BookSearchController
                     $results[] = ['type'=>($f['type']==='in'?'Fund In':'Fund Out'),'label'=>$f['title'].' — '.number_format($f['amount'],0),'url'=>'/books/'.$bookId.'/funds'];
                 }
             } catch (\Throwable $e) {}
+            }
 
+            if ($can('contacts')) {
             // Contacts
             try {
                 foreach (Database::query(
@@ -170,6 +192,7 @@ class BookSearchController
                     $results[] = ['type'=>'Contact','label'=>$c['name'].($c['phone']?' — '.$c['phone']:''),'url'=>'/books/'.$bookId.'/contacts'];
                 }
             } catch (\Throwable $e) {}
+            }
 
         } else {
             // Personal book

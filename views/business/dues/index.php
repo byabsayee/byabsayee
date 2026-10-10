@@ -344,14 +344,12 @@ ob_start();
 </div>
 
 <style>
-.autocomplete-dropdown{position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--border);border-radius:var(--radius);box-shadow:0 6px 20px rgba(0,0,0,.1);max-height:180px;overflow-y:auto;z-index:500}
+.autocomplete-dropdown{position:absolute;top:100%;left:0;right:0;background:var(--white);border:1px solid var(--border);border-radius:var(--radius);box-shadow:0 6px 20px rgba(0,0,0,.1);max-height:180px;overflow-y:auto;z-index:500}
 .autocomplete-item{padding:8px 12px;cursor:pointer;font-size:13px}
 .autocomplete-item:hover{background:var(--bg)}
 .autocomplete-item small{color:var(--text-muted);display:block;font-size:11px}
 .stat-sub{font-size:11px;color:var(--text-muted);margin-top:2px}
 .amber{color:var(--amber)!important}
-.badge-amber{background:var(--amber-bg,#fff8e1);color:var(--amber,#f59e0b)}
-.badge-gray{background:#f3f4f6;color:#6b7280}
 </style>
 
 <script>

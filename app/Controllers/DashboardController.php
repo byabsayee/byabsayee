@@ -10,24 +10,10 @@ class DashboardController
 
         $userId = auth()['id'];
 
-        // For personal books: total_in/out = entries
-        // For business books: total_in = paid sales, total_out = paid purchases
-        // Includes both owned books AND books where user is an active member
+        // Includes both owned books AND books where the user is an active member. Figures come from ReportService
+        // (personal = its entries, business = cash flow) so they match the book list and the Reports page.
         $books = Database::query(
-            'SELECT b.*,
-                CASE
-                    WHEN b.type = "personal" THEN
-                        COALESCE((SELECT SUM(e.amount) FROM entries e WHERE e.book_id=b.id AND e.type="in"  AND e.deleted_at IS NULL),0)
-                    ELSE
-                        COALESCE((SELECT SUM(i.total) FROM invoices i WHERE i.book_id=b.id AND i.type="sale"     AND i.status="paid" AND i.deleted_at IS NULL),0)
-                END AS total_in,
-                CASE
-                    WHEN b.type = "personal" THEN
-                        COALESCE((SELECT SUM(e.amount) FROM entries e WHERE e.book_id=b.id AND e.type="out" AND e.deleted_at IS NULL),0)
-                    ELSE
-                        COALESCE((SELECT SUM(i.total) FROM invoices i WHERE i.book_id=b.id AND i.type="purchase" AND i.status="paid" AND i.deleted_at IS NULL),0)
-                END AS total_out,
-                (b.user_id = ?) AS is_owner
+            'SELECT b.*, (b.user_id = ?) AS is_owner
              FROM books b
              WHERE b.deleted_at IS NULL
                AND (
@@ -40,6 +26,12 @@ class DashboardController
              ORDER BY is_owner DESC, b.created_at DESC',
             [$userId, $userId, $userId]
         );
+        foreach ($books as &$bk) {
+            $t = \App\Services\ReportService::bookTotals($bk);
+            $bk['total_in']  = $t['in'];
+            $bk['total_out'] = $t['out'];
+        }
+        unset($bk);
 
         require BASE_PATH . '/views/dashboard/index.php';
     }

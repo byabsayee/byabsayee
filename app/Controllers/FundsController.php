@@ -47,7 +47,7 @@ class FundsController
         $type   = (($_POST['type'] ?? 'add') === 'withdraw') ? 'out' : 'in';
         $amount = (float)($_POST['amount'] ?? 0);
         $source = trim($_POST['source'] ?? '');
-        $date   = $_POST['date'] ?? date('Y-m-d');
+        $date   = valid_date($_POST['date'] ?? null, date('Y-m-d'));
         $note   = trim($_POST['note'] ?? '');
 
         if ($amount <= 0) {
@@ -89,7 +89,7 @@ class FundsController
         $type    = ($typeRaw === 'withdraw' || $typeRaw === 'out') ? 'out' : 'in';
         $amount  = (float)($_POST['amount'] ?? 0);
         $source  = trim($_POST['source'] ?? '');
-        $date    = $_POST['date'] ?? $fund['fund_date'];
+        $date    = valid_date($_POST['date'] ?? null, $fund['fund_date']);
         $note    = trim($_POST['note'] ?? '');
 
         if ($amount <= 0) {

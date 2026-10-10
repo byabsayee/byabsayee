@@ -21,112 +21,20 @@ $countryCodes = [
 ];
 ?>
 <style>
-/* ── Profile edit layout — mirrors app settings ───────────────────────────── */
-.pe-wrap{display:flex;gap:24px;align-items:flex-start}
-.pe-nav{width:220px;flex-shrink:0;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;overflow:hidden;position:sticky;top:20px}
-.pe-nav-header{padding:20px 16px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px}
-.pe-avatar{width:48px;height:48px;border-radius:50%;object-fit:cover;background:var(--brand);display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;font-weight:700;flex-shrink:0}
-.pe-avatar img{width:100%;height:100%;border-radius:50%;object-fit:cover}
-.pe-user-name{font-size:14px;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.pe-user-handle{font-size:12px;color:var(--brand);margin-top:2px}
-.pe-nav a{display:flex;align-items:center;gap:10px;padding:11px 16px;color:var(--text);text-decoration:none;font-size:13px;font-weight:500;border-bottom:1px solid var(--border);transition:background .12s}
-.pe-nav a:last-child{border-bottom:none}
-.pe-nav a:hover{background:var(--hover-bg,rgba(0,0,0,.04))}
-.pe-nav a.active{background:var(--brand-light,rgba(26,107,74,.08));color:var(--brand);font-weight:600}
-.pe-nav a i{width:18px;text-align:center;font-size:14px}
-.pe-nav .nav-group{padding:8px 16px 4px;font-size:10px;font-weight:700;letter-spacing:.06em;color:var(--text-muted);text-transform:uppercase;background:var(--bg)}
-.pe-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:0}
-.pe-panel{background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:28px;margin-bottom:20px}
-.pe-panel h2{font-size:17px;font-weight:700;margin:0 0 4px;color:var(--text)}
-.pe-panel .panel-desc{font-size:13px;color:var(--text-muted);margin:0 0 22px}
-.pe-panel hr{border:none;border-top:1px solid var(--border);margin:20px 0}
-
-/* form elements */
-.fg{margin-bottom:16px}
-.fg label{display:block;font-size:13px;font-weight:600;color:var(--text);margin-bottom:6px}
-.fg label .hint{font-weight:400;color:var(--text-muted);margin-left:6px;font-size:12px}
-.fg input[type=text],.fg input[type=email],.fg input[type=url],.fg input[type=number],
-.fg input[type=date],.fg input[type=password],.fg select,.fg textarea{width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;background:var(--input-bg,var(--bg));color:var(--text);font-size:14px;box-sizing:border-box;transition:border-color .15s;font-family:inherit}
-.fg input:focus,.fg select:focus,.fg textarea:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px rgba(26,107,74,.1)}
-.fg textarea{resize:vertical;min-height:80px}
-.fg-row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-.fg-row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
-.phone-row{display:flex;gap:8px}
-.phone-row select{width:130px;flex-shrink:0}
-.phone-row input{flex:1}
-
-/* avatar upload */
+/* page-specific widgets (shell, forms, toggles, uploads, repeat rows come from settings.css) */
 .avatar-upload{display:flex;align-items:center;gap:16px;margin-bottom:20px}
-.avatar-big{width:80px;height:80px;border-radius:50%;object-fit:cover;background:var(--brand);display:flex;align-items:center;justify-content:center;color:#fff;font-size:32px;font-weight:700;flex-shrink:0;overflow:hidden;border:3px solid var(--border)}
+.avatar-big{width:80px;height:80px;border-radius:50%;background:var(--brand);display:flex;align-items:center;justify-content:center;color:#fff;font-size:32px;font-weight:700;flex-shrink:0;overflow:hidden}
 .avatar-big img{width:100%;height:100%;object-fit:cover}
-.banner-upload{border:2px dashed var(--border);border-radius:10px;padding:20px;text-align:center;cursor:pointer;transition:all .2s;background:var(--bg);position:relative;overflow:hidden;min-height:100px}
-.banner-upload:hover{border-color:var(--brand);background:var(--brand-light,rgba(26,107,74,.05))}
-.banner-upload input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer}
-.banner-preview{width:100%;height:120px;object-fit:cover;border-radius:8px;margin-top:10px;display:none}
-
-/* visibility toggles */
-.vis-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)}
-.vis-row:last-child{border-bottom:none}
-.vis-info strong{display:block;font-size:13px;font-weight:600;color:var(--text)}
-.vis-info span{font-size:12px;color:var(--text-muted)}
-.toggle-switch{position:relative;width:42px;height:22px;flex-shrink:0}
-.toggle-switch input{opacity:0;width:0;height:0;position:absolute}
-.toggle-slider{position:absolute;inset:0;background:#ccc;border-radius:22px;cursor:pointer;transition:.2s}
-.toggle-slider:before{content:'';position:absolute;height:16px;width:16px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.2s}
-.toggle-switch input:checked + .toggle-slider{background:var(--brand)}
-.toggle-switch input:checked + .toggle-slider:before{transform:translateX(20px)}
-
-/* repeatable rows */
-.repeat-item{display:flex;gap:8px;align-items:flex-start;padding:12px;background:var(--bg);border:1px solid var(--border);border-radius:8px;margin-bottom:8px}
-.repeat-item .item-fields{flex:1;display:grid;gap:8px}
-.repeat-del{background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:18px;padding:4px;border-radius:6px;transition:all .15s;margin-top:2px;flex-shrink:0}
-.repeat-del:hover{background:rgba(229,62,62,.1);color:#e53e3e}
-.add-row-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:var(--bg);border:1px dashed var(--border);border-radius:8px;color:var(--text-muted);font-size:13px;cursor:pointer;transition:all .15s;width:100%;justify-content:center;margin-top:4px}
-.add-row-btn:hover{border-color:var(--brand);color:var(--brand)}
-
-/* color swatch */
-.color-pick-row{display:flex;align-items:center;gap:12px}
-.color-swatch{width:40px;height:40px;border-radius:10px;border:2px solid var(--border);cursor:pointer;position:relative;overflow:hidden;flex-shrink:0}
-.color-swatch input[type=color]{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
-
-/* social platform icon */
 .social-platform-row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
 .social-platform-icon{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;background:var(--bg);border:1px solid var(--border)}
-
-/* public profile link card */
-.profile-link-card{background:var(--brand-light,rgba(26,107,74,.07));border:1px solid var(--brand);border-radius:10px;padding:14px 18px;display:flex;align-items:center;gap:14px}
-.profile-link-card i{font-size:22px;color:var(--brand)}
-.profile-link-card .link-text{flex:1}
-.profile-link-card strong{display:block;font-size:14px;font-weight:700;color:var(--text)}
-.profile-link-card a{font-size:13px;color:var(--brand);word-break:break-all;text-decoration:none}
-.profile-link-card a:hover{text-decoration:underline}
-
-/* security panel */
-.security-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600}
-.badge-on{background:rgba(26,107,74,.12);color:#1a6b4a}
-.badge-off{background:rgba(239,68,68,.1);color:#ef4444}
-.tfa-method-card{border:2px solid var(--border);border-radius:10px;padding:14px 16px;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:12px}
-.tfa-method-card:hover{border-color:var(--brand)}
-.tfa-method-card.selected{border-color:var(--brand);background:var(--brand-light,rgba(26,107,74,.06))}
-.tfa-method-card input[type=radio]{display:none}
-.tfa-method-card .tmc-icon{width:38px;height:38px;border-radius:10px;background:var(--bg);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
-.tfa-method-card.selected .tmc-icon{background:var(--brand);border-color:var(--brand);color:#fff}
-
-/* session card */
+.tmc-icon{width:38px;height:38px;border-radius:10px;background:var(--bg);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.choice-card.selected .tmc-icon{background:var(--brand);border-color:var(--brand);color:#fff}
 .session-item{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)}
 .session-item:last-child{border-bottom:none}
 .session-icon{width:36px;height:36px;border-radius:8px;background:var(--bg);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:15px;color:var(--text-muted);flex-shrink:0}
-.session-current{background:rgba(26,107,74,.1);border-color:var(--brand);color:var(--brand)}
-
-@media(max-width:760px){.pe-wrap{flex-direction:column}.pe-nav{width:100%;position:static}.fg-row,.fg-row-3{grid-template-columns:1fr}}
+.session-current{background:var(--brand-light);border-color:var(--brand);color:var(--brand)}
 </style>
 
-<?php if (!empty($_SESSION['flash_success'])): ?>
-<div class="alert alert-success" style="margin-bottom:16px"><i class="fa-solid fa-check-circle"></i> <?= e($_SESSION['flash_success']) ?><?php unset($_SESSION['flash_success']); ?></div>
-<?php endif; ?>
-<?php if (!empty($_SESSION['flash_error'])): ?>
-<div class="alert alert-error" style="margin-bottom:16px"><i class="fa-solid fa-triangle-exclamation"></i> <?= e($_SESSION['flash_error']) ?><?php unset($_SESSION['flash_error']); ?></div>
-<?php endif; ?>
 
 <div class="page-header">
     <div class="page-header-left">
@@ -141,11 +49,11 @@ $countryCodes = [
     <?php endif; ?>
 </div>
 
-<div class="pe-wrap">
+<div class="st-wrap">
     <!-- Sidebar Nav -->
-    <nav class="pe-nav">
-        <div class="pe-nav-header">
-            <div class="pe-avatar">
+    <nav class="st-nav">
+        <div class="st-nav-head">
+            <div class="st-avatar round">
                 <?php if (!empty($user['avatar'])): ?>
                 <img src="<?= asset('uploads/'.$user['avatar']) ?>" alt="">
                 <?php else: ?>
@@ -153,31 +61,31 @@ $countryCodes = [
                 <?php endif; ?>
             </div>
             <div>
-                <div class="pe-user-name"><?= e($user['name'] ?? '') ?></div>
-                <div class="pe-user-handle"><?= $handle ? '@'.e($handle['handle']) : 'No handle yet' ?></div>
+                <div class="st-nav-name"><?= e($user['name'] ?? '') ?></div>
+                <div class="st-nav-sub brand"><?= $handle ? '@'.e($handle['handle']) : 'No handle yet' ?></div>
             </div>
         </div>
-        <div class="nav-group">Personal</div>
+        <div class="st-nav-group">Personal</div>
         <a href="?tab=basic"      class="<?= $tab==='basic'?'active':'' ?>"><i class="fa-solid fa-user"></i> Basic Info</a>
         <a href="?tab=profile"    class="<?= $tab==='profile'?'active':'' ?>"><i class="fa-solid fa-address-card"></i> Profile Details</a>
         <a href="?tab=education"  class="<?= $tab==='education'?'active':'' ?>"><i class="fa-solid fa-graduation-cap"></i> Education</a>
         <a href="?tab=experience" class="<?= $tab==='experience'?'active':'' ?>"><i class="fa-solid fa-briefcase"></i> Experience</a>
         <a href="?tab=social"     class="<?= $tab==='social'?'active':'' ?>"><i class="fa-solid fa-share-nodes"></i> Social Links</a>
-        <div class="nav-group">Privacy & Security</div>
+        <div class="st-nav-group">Privacy & Security</div>
         <a href="?tab=visibility" class="<?= $tab==='visibility'?'active':'' ?>"><i class="fa-solid fa-eye"></i> Visibility</a>
         <a href="?tab=security"   class="<?= $tab==='security'?'active':'' ?>"><i class="fa-solid fa-shield-halved"></i> Security</a>
-        <div class="nav-group">CV</div>
+        <div class="st-nav-group">CV</div>
         <a href="/profile/cv/pdf" target="_blank"><i class="fa-solid fa-print"></i> Print / Download CV</a>
     </nav>
 
     <!-- Content -->
-    <div class="pe-body">
+    <div class="st-body">
 
     <?php if ($tab === 'basic'): ?>
     <!-- ── BASIC INFO ───────────────────────────────────────────────────── -->
 
     <?php if ($handle): ?>
-    <div class="profile-link-card" style="margin-bottom:20px">
+    <div class="link-card" style="margin-bottom:20px">
         <i class="fa-solid fa-link"></i>
         <div class="link-text">
             <strong>Your Public Profile Link</strong>
@@ -190,9 +98,8 @@ $countryCodes = [
     <?php endif; ?>
 
     <!-- Unique Handle -->
-    <div class="pe-panel">
-        <h2>Unique Handle</h2>
-        <p class="panel-desc">Your @handle is your unique identity on Byabsayee. Once set, it becomes your public profile URL.</p>
+    <div class="st-panel">
+        <div class="st-head"><div><h2>Unique Handle</h2><p class="panel-desc">Your @handle is your unique identity on Byabsayee. Once set, it becomes your public profile URL.</p></div></div>
         <form method="POST" action="/profile/handle">
             <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
             <div class="fg">
@@ -210,9 +117,8 @@ $countryCodes = [
     </div>
 
     <!-- Basic Info -->
-    <div class="pe-panel">
-        <h2>Basic Information</h2>
-        <p class="panel-desc">Your name, contact details, and avatar.</p>
+    <div class="st-panel">
+        <div class="st-head"><div><h2>Basic Information</h2><p class="panel-desc">Your name, contact details, and avatar.</p></div></div>
         <form method="POST" action="/profile/basic" enctype="multipart/form-data">
             <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
 
@@ -305,9 +211,8 @@ $countryCodes = [
 
     <?php elseif ($tab === 'profile'): ?>
     <!-- ── PROFILE DETAILS ─────────────────────────────────────────────── -->
-    <div class="pe-panel">
-        <h2>Profile Details</h2>
-        <p class="panel-desc">Your bio, address, headline, business association, and profile appearance.</p>
+    <div class="st-panel">
+        <div class="st-head"><div><h2>Profile Details</h2><p class="panel-desc">Your bio, address, headline, business association, and profile appearance.</p></div></div>
         <form method="POST" action="/profile/profile" enctype="multipart/form-data">
             <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
 
@@ -451,9 +356,8 @@ $countryCodes = [
 
     <?php elseif ($tab === 'education'): ?>
     <!-- ── EDUCATION ───────────────────────────────────────────────────── -->
-    <div class="pe-panel">
-        <h2>Education</h2>
-        <p class="panel-desc">Add your educational background. Multiple institutions supported.</p>
+    <div class="st-panel">
+        <div class="st-head"><div><h2>Education</h2><p class="panel-desc">Add your educational background. Multiple institutions supported.</p></div></div>
         <form method="POST" action="/profile/education">
             <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
 
@@ -543,9 +447,8 @@ $countryCodes = [
 
     <?php elseif ($tab === 'experience'): ?>
     <!-- ── WORK EXPERIENCE ─────────────────────────────────────────────── -->
-    <div class="pe-panel">
-        <h2><i class="fa-solid fa-briefcase" style="color:var(--brand);margin-right:8px"></i>Work Experience</h2>
-        <p class="panel-desc">Add your professional work history. Each entry can be toggled visible on your public profile via the Visibility tab.</p>
+    <div class="st-panel">
+        <div class="st-head"><div class="st-icon"><i class="fa-solid fa-briefcase"></i></div><div><h2>Work Experience</h2><p class="panel-desc">Add your professional work history. Each entry can be toggled visible on your public profile via the Visibility tab.</p></div></div>
         <form method="POST" action="/profile/experience">
             <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
             <div id="expList">
@@ -624,9 +527,8 @@ $countryCodes = [
 
     <?php elseif ($tab === 'social'): ?>
     <!-- ── SOCIAL LINKS ────────────────────────────────────────────────── -->
-    <div class="pe-panel">
-        <h2>Social Links</h2>
-        <p class="panel-desc">Add your social media profiles and other online presence.</p>
+    <div class="st-panel">
+        <div class="st-head"><div><h2>Social Links</h2><p class="panel-desc">Add your social media profiles and other online presence.</p></div></div>
         <form method="POST" action="/profile/social">
             <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
             <div id="socialList">
@@ -668,9 +570,8 @@ $countryCodes = [
 
     <?php elseif ($tab === 'visibility'): ?>
     <!-- ── VISIBILITY ──────────────────────────────────────────────────── -->
-    <div class="pe-panel">
-        <h2><i class="fa-solid fa-eye"></i> Public Visibility</h2>
-        <p class="panel-desc">Choose what information is visible to anyone who visits your public profile link. Unchecked fields remain private.</p>
+    <div class="st-panel">
+        <div class="st-head"><div class="st-icon"><i class="fa-solid fa-eye"></i></div><div><h2>Public Visibility</h2><p class="panel-desc">Choose what information is visible to anyone who visits your public profile link. Unchecked fields remain private.</p></div></div>
         <form method="POST" action="/profile/visibility">
             <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
             <?php
@@ -738,9 +639,8 @@ $countryCodes = [
     </div>
 
     <!-- Change Password -->
-    <div class="pe-panel">
-        <h2><i class="fa-solid fa-lock" style="color:var(--brand);margin-right:8px"></i>Change Password</h2>
-        <p class="panel-desc">Keep your account safe with a strong, unique password.</p>
+    <div class="st-panel">
+        <div class="st-head"><div class="st-icon"><i class="fa-solid fa-lock"></i></div><div><h2>Change Password</h2><p class="panel-desc">Keep your account safe with a strong, unique password.</p></div></div>
 
         <?php if ($pwd2faMode): ?>
         <!-- Step 2: Confirm with 2FA code -->
@@ -800,9 +700,8 @@ $countryCodes = [
     </div>
 
     <!-- Two-Factor Authentication -->
-    <div class="pe-panel">
-        <h2><i class="fa-solid fa-shield-halved" style="color:var(--brand);margin-right:8px"></i>Two-Factor Authentication</h2>
-        <p class="panel-desc">You can enable multiple 2FA methods. During login, you'll choose which one to use.</p>
+    <div class="st-panel">
+        <div class="st-head"><div class="st-icon"><i class="fa-solid fa-shield-halved"></i></div><div><h2>Two-Factor Authentication</h2><p class="panel-desc">You can enable multiple 2FA methods. During login, you'll choose which one to use.</p></div></div>
 
         <!-- Status overview -->
         <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--bg);border:1px solid var(--border);border-radius:10px;margin-bottom:20px">
@@ -815,7 +714,7 @@ $countryCodes = [
                 </div>
                 <?php endif; ?>
             </div>
-            <span class="security-badge <?= $tfa2Enabled ? 'badge-on' : 'badge-off' ?>"><?= $tfa2Enabled ? '✓ Active' : '✗ Off' ?></span>
+            <span class="<?= $tfa2Enabled ? 'st-badge-on' : 'st-badge-off' ?>"><?= $tfa2Enabled ? '✓ Active' : '✗ Off' ?></span>
         </div>
 
         <!-- Method cards: show add/remove per method -->
@@ -831,7 +730,7 @@ $countryCodes = [
                 </div>
                 <div style="flex:1">
                     <div style="font-size:13px;font-weight:700;color:var(--text)"><?= $mDef['label'] ?>
-                        <?php if ($isEnabled): ?><span class="security-badge badge-on" style="margin-left:6px">✓ Active</span><?php endif; ?>
+                        <?php if ($isEnabled): ?><span class="st-badge-on" style="margin-left:6px">✓ Active</span><?php endif; ?>
                     </div>
                     <div style="font-size:12px;color:var(--text-muted);margin-top:1px"><?= $mDef['desc'] ?></div>
                 </div>
@@ -883,9 +782,8 @@ $countryCodes = [
 
         <!-- ── Dedicated TOTP Setup Panel ─────────────────────────────────── -->
         <?php if ($setupTotp): ?>
-        <div class="pe-panel" style="border-color:var(--brand);background:rgba(26,107,74,.03)" id="totpSetupPanel">
-            <h2><i class="fa-solid fa-qrcode" style="color:var(--brand);margin-right:8px"></i>Set Up Authenticator App</h2>
-            <p class="panel-desc">Use Google Authenticator, Microsoft Authenticator, Authy, or any TOTP-compatible app.</p>
+        <div class="st-panel highlight" id="totpSetupPanel">
+            <div class="st-head"><div class="st-icon"><i class="fa-solid fa-qrcode"></i></div><div><h2>Set Up Authenticator App</h2><p class="panel-desc">Use Google Authenticator, Microsoft Authenticator, Authy, or any TOTP-compatible app.</p></div></div>
 
             <div style="display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap;margin-bottom:20px">
                 <!-- QR Code -->
@@ -1006,9 +904,8 @@ $countryCodes = [
     </div>
 
     <!-- Active Sessions -->
-    <div class="pe-panel">
-        <h2><i class="fa-solid fa-desktop" style="color:var(--brand);margin-right:8px"></i>Active Sessions</h2>
-        <p class="panel-desc">Devices and browsers signed into your account. The current session is highlighted.</p>
+    <div class="st-panel">
+        <div class="st-head"><div class="st-icon"><i class="fa-solid fa-desktop"></i></div><div><h2>Active Sessions</h2><p class="panel-desc">Devices and browsers signed into your account. The current session is highlighted.</p></div></div>
 
         <?php
         $currentSessId = session_id();
@@ -1070,9 +967,8 @@ $countryCodes = [
     </div>
 
     <!-- Danger Zone -->
-    <div class="pe-panel" style="border-color:rgba(239,68,68,.3)">
-        <h2 style="color:#ef4444"><i class="fa-solid fa-triangle-exclamation" style="margin-right:8px"></i>Danger Zone</h2>
-        <p class="panel-desc">Irreversible account actions. Proceed with caution.</p>
+    <div class="st-panel danger">
+        <div class="st-head"><div class="st-icon red"><i class="fa-solid fa-triangle-exclamation"></i></div><div><h2>Danger Zone</h2><p class="panel-desc">Irreversible account actions. Proceed with caution.</p></div></div>
         <div style="background:rgba(239,68,68,.05);border:1px solid rgba(239,68,68,.2);border-radius:10px;padding:16px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
             <div>
                 <strong style="font-size:14px;color:#ef4444">Delete My Account</strong>
@@ -1228,8 +1124,8 @@ $countryCodes = [
 
     <?php endif; ?>
 
-    </div><!-- /.pe-body -->
-</div><!-- /.pe-wrap -->
+    </div><!-- /.st-body -->
+</div><!-- /.st-wrap -->
 
 <script>
 function previewAvatar(input) {
@@ -1358,7 +1254,7 @@ function checkPwdStrength(val) {
     label.textContent = l.t; label.style.color = l.c;
 }
 function selectTfaCard(radio) {
-    document.querySelectorAll('.tfa-method-card').forEach(c => {
+    document.querySelectorAll('.choice-card').forEach(c => {
         const r = c.querySelector('input[type=radio]');
         c.classList.toggle('selected', r && r.checked);
         const icon = c.querySelector('.tmc-icon');

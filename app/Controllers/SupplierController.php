@@ -136,6 +136,10 @@ class SupplierController
         $book     = $this->getBookOrFail($params['id']);
         if (!book_can($book, 'suppliers', 'delete')) abort_403();
         $supplier = $this->getSupplierOrFail($params['supplier_id'], $book['id']);
+        $open = \App\Services\LedgerService::openBalance('supplier', (int)$supplier['id']);
+        if ($open['count'] > 0 && empty($_POST['confirm_open'])) {
+            redirect('/books/'.$book['id'].'/suppliers/'.$supplier['id'], ['error' => $supplier['name'] . ' still has ' . format_money($open['amount']) . ' open across ' . $open['count'] . ' debt' . ($open['count'] > 1 ? 's' : '') . '. Settle or cancel ' . ($open['count'] > 1 ? 'them' : 'it') . ' first — or use Delete on this page and confirm to remove the supplier anyway (the records stay in your books).']);
+        }
 
         ActivityLogger::write($book['id'], auth()['id'], 'supplier.deleted', 'Supplier', (int)$supplier['id'],
             "Supplier deleted — {$supplier['name']}", ['name'=>$supplier['name']]);

@@ -37,6 +37,10 @@ class PrintController
             http_response_code(404); echo 'Unknown category.'; exit;
         }
 
+        // Printing a list needs the right to view that list (privileges are managed under customers).
+        $printModule = $category === 'privileges' ? 'customers' : $category;
+        if (!book_can($book, $printModule, 'view')) { http_response_code(403); echo 'Forbidden'; exit; }
+
         // ── Business details ──────────────────────────────────────────────
         $details = [];
         try { $details = Database::row('SELECT * FROM book_business_details WHERE book_id=?', [$book['id']]) ?: []; }
@@ -705,88 +709,15 @@ class PrintController
     // ─────────────────────────────────────────────────────────────────────────
     private function fetchReports(array $book, array $details, string $sym, string $mode, string $from, string $to): array
     {
-        $title   = 'Financial Ledger Report';
+        $title   = 'Cash Ledger Report';
         $columns = ['Date', 'Category', 'Reference / Description', 'Party', 'Income', 'Expense'];
 
+        // Same ledger as the Reports screen (cash basis) — see ReportService for the rules.
         $entries = [];
-
-        $queries = [
-            // Sale invoices (IN)
-            ["SELECT i.date, 'Sale Invoice' AS category, i.invoice_no AS ref,
-                     COALESCE(c.name,'Walk-in') AS party, 'in' AS dir, i.total AS amount
-              FROM invoices i LEFT JOIN customers c ON c.id=i.customer_id
-              WHERE i.book_id=? AND i.type='sale' AND i.deleted_at IS NULL AND i.date BETWEEN ? AND ?",
-             [$book['id'], $from, $to]],
-            // Purchase invoices (OUT)
-            ["SELECT i.date, 'Purchase Invoice' AS category, i.invoice_no AS ref,
-                     COALESCE(s.name,'Unknown') AS party, 'out' AS dir, i.total AS amount
-              FROM invoices i LEFT JOIN suppliers s ON s.id=i.supplier_id
-              WHERE i.book_id=? AND i.type='purchase' AND i.deleted_at IS NULL AND i.date BETWEEN ? AND ?",
-             [$book['id'], $from, $to]],
-            // Sales returns (OUT)
-            ["SELECT r.date, 'Sales Return' AS category, r.return_no AS ref,
-                     COALESCE(c.name,'Unknown') AS party, 'out' AS dir, r.total_refund AS amount
-              FROM returns r LEFT JOIN customers c ON c.id=r.customer_id
-              WHERE r.book_id=? AND r.type='sales_return' AND r.deleted_at IS NULL AND r.date BETWEEN ? AND ?",
-             [$book['id'], $from, $to]],
-            // Purchase returns (IN)
-            ["SELECT r.date, 'Purchase Return' AS category, r.return_no AS ref,
-                     COALESCE(s.name,'Unknown') AS party, 'in' AS dir, r.total_refund AS amount
-              FROM returns r LEFT JOIN suppliers s ON s.id=r.supplier_id
-              WHERE r.book_id=? AND r.type='purchase_return' AND r.deleted_at IS NULL AND r.date BETWEEN ? AND ?",
-             [$book['id'], $from, $to]],
-            // Expenses (OUT)
-            ["SELECT e.expense_date AS date, CONCAT('Expense: ', COALESCE(ec.name,'General')) AS category,
-                     e.title AS ref, COALESCE(e.paid_to,'—') AS party, 'out' AS dir, e.amount
-              FROM expenses e LEFT JOIN expense_categories ec ON ec.id=e.category_id
-              WHERE e.book_id=? AND e.expense_date BETWEEN ? AND ?",
-             [$book['id'], $from, $to]],
-            // Funds IN
-            ["SELECT fund_date AS date, 'Fund Received' AS category,
-                     COALESCE(title,'Fund') AS ref, '—' AS party, 'in' AS dir, amount
-              FROM funds WHERE book_id=? AND type='in' AND fund_date BETWEEN ? AND ?",
-             [$book['id'], $from, $to]],
-            // Funds OUT
-            ["SELECT fund_date AS date, 'Fund Withdrawn' AS category,
-                     COALESCE(title,'Withdrawal') AS ref, '—' AS party, 'out' AS dir, amount
-              FROM funds WHERE book_id=? AND type='out' AND fund_date BETWEEN ? AND ?",
-             [$book['id'], $from, $to]],
-            // Due payments (IN)
-            ["SELECT DATE(dp.paid_at) AS date, 'Due Payment' AS category,
-                     CONCAT('Due: ', d.title) AS ref,
-                     COALESCE(c.name,'Unknown') AS party, 'in' AS dir, dp.amount
-              FROM due_payments dp JOIN dues d ON d.id=dp.due_id
-              LEFT JOIN customers c ON c.id=d.customer_id
-              WHERE dp.book_id=? AND DATE(dp.paid_at) BETWEEN ? AND ?",
-             [$book['id'], $from, $to]],
-            // Debt payments (OUT)
-            ["SELECT DATE(dp.paid_at) AS date, 'Debt Repayment' AS category,
-                     CONCAT('Debt: ', d.title) AS ref,
-                     COALESCE(d.party,'—') AS party, 'out' AS dir, dp.amount
-              FROM debt_payments dp JOIN debts d ON d.id=dp.debt_id
-              WHERE dp.book_id=? AND DATE(dp.paid_at) BETWEEN ? AND ?",
-             [$book['id'], $from, $to]],
-        ];
-
-        foreach ($queries as [$sql, $bind]) {
-            try {
-                foreach (Database::query($sql, $bind) as $r) $entries[] = $r;
-            } catch (\Throwable $e) {}
+        foreach (\App\Services\ReportService::ledger((int)$book['id'], $from, $to) as $l) {
+            $entries[] = ['date' => $l['date'], 'category' => $l['category'], 'ref' => $l['ref'],
+                          'party' => $l['party'], 'dir' => $l['direction'], 'amount' => $l['amount']];
         }
-
-        // Salary payments (OUT)
-        try {
-            foreach (Database::query(
-                "SELECT DATE(sp.created_at) AS date, 'Salary Payment' AS category,
-                        CONCAT('Salary: ', em.name) AS ref,
-                        em.name AS party, 'out' AS dir, sp.amount
-                 FROM employee_salary_payments sp JOIN employees em ON em.id=sp.employee_id
-                 WHERE sp.book_id=? AND DATE(sp.created_at) BETWEEN ? AND ?",
-                [$book['id'], $from, $to]
-            ) as $r) $entries[] = $r;
-        } catch (\Throwable $e) {}
-
-        usort($entries, fn($a, $b) => strcmp($b['date'], $a['date']));
 
         $formatted = [];
         foreach ($entries as $e) {

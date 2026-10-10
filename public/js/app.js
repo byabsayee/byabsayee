@@ -557,3 +557,171 @@ global.MonthNav = MonthNav;
 })(window);
 
 
+
+/* ============================================================
+   SHELL  (Phase 4) — sidebar collapse (desktop), drawer (phone),
+   floating add button, table scroll wrappers.
+
+   Bug fixed here: the old code wrote an inline `margin-left` on
+   .app-main, which beat the phone stylesheet and pushed the page
+   off-screen; and a saved "collapsed" desktop preference made the
+   phone drawer icon-only. Now the sidebar is only ever collapsed
+   (and the margin only ever set) on screens wider than 768px.
+   ============================================================ */
+(function () {
+    var PREF_KEY = 'sidebar_collapsed';
+    var mq = window.matchMedia('(max-width: 768px)');
+
+    function isPhone() { return mq.matches; }
+    function $(id) { return document.getElementById(id); }
+
+    /* ── Tooltips for the collapsed (icon-only) desktop sidebar ── */
+    function initTooltips() {
+        document.querySelectorAll('#sidebar .nav-item').forEach(function (el) {
+            if (el.hasAttribute('data-label')) return;
+            var span = el.querySelector('.nav-text');
+            if (span) { el.setAttribute('data-label', span.textContent.trim()); return; }
+            var clone = el.cloneNode(true);
+            clone.querySelectorAll('i, .notif-badge, .nav-chevron, .nav-dropdown-menu, .nav-soon').forEach(function (n) { n.remove(); });
+            var label = clone.textContent.replace(/\s+/g, ' ').trim();
+            if (label) el.setAttribute('data-label', label);
+        });
+    }
+
+    /* ── Layout state: desktop = collapsed pref + margin, phone = neither ── */
+    function applyLayout() {
+        var sb = $('sidebar'), main = document.querySelector('.app-main');
+        var icon = $('sidebarCollapseIcon'), cb = $('sidebarCollapseBtn');
+        if (!sb) return;
+        if (isPhone()) {
+            sb.classList.remove('collapsed');
+            if (main) main.style.marginLeft = '';          // let the stylesheet decide
+            return;
+        }
+        closeDrawer(true);                                   // leaving phone size: reset drawer state
+        var pref = '0';
+        try { pref = localStorage.getItem(PREF_KEY) || '0'; } catch (e) {}
+        var collapsed = pref === '1';
+        sb.classList.toggle('collapsed', collapsed);
+        if (icon) icon.className = collapsed ? 'fa-solid fa-angles-right' : 'fa-solid fa-angles-left';
+        if (cb) cb.title = collapsed ? 'Expand' : 'Collapse';
+        if (main) main.style.marginLeft = collapsed ? 'var(--sidebar-collapsed-w)' : 'var(--sidebar-w)';
+    }
+
+    window.toggleSidebar = function () {
+        if (isPhone()) { closeDrawer(); return; }
+        var sb = $('sidebar');
+        if (!sb) return;
+        try { localStorage.setItem(PREF_KEY, sb.classList.contains('collapsed') ? '0' : '1'); } catch (e) {}
+        applyLayout();
+    };
+
+    /* ── Drawer (phone) ───────────────────────────────────────── */
+    window.openDrawer = function () {
+        var sb = $('sidebar'); if (!sb) return;
+        sb.classList.add('open');
+        var ov = $('sidebarOverlay'); if (ov) ov.classList.add('show');
+        document.body.classList.add('drawer-open');
+    };
+    window.closeDrawer = function (silent) {
+        var sb = $('sidebar'); if (!sb) return;
+        sb.classList.remove('open');
+        var ov = $('sidebarOverlay'); if (ov) ov.classList.remove('show');
+        document.body.classList.remove('drawer-open');
+    };
+
+    function initDrawerGestures() {
+        var sb = $('sidebar'); if (!sb) return;
+
+        // Close when a real link is tapped (not the dropdown chevron)
+        sb.addEventListener('click', function (e) {
+            var a = e.target.closest('a[href]');
+            if (a && isPhone()) closeDrawer();
+        });
+        // Esc closes it
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape' && sb.classList.contains('open')) closeDrawer();
+        });
+        // Swipe left on the open drawer closes it; swipe right from the left edge opens it
+        var x0 = null, y0 = null, fromEdge = false;
+        document.addEventListener('touchstart', function (e) {
+            if (!isPhone() || e.touches.length !== 1) { x0 = null; return; }
+            x0 = e.touches[0].clientX; y0 = e.touches[0].clientY;
+            fromEdge = x0 < 18 && !sb.classList.contains('open');
+        }, { passive: true });
+        document.addEventListener('touchend', function (e) {
+            if (x0 === null) return;
+            var dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0;
+            x0 = null;
+            if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+            if (sb.classList.contains('open') && dx < 0) closeDrawer();
+            else if (fromEdge && dx > 0) openDrawer();
+        }, { passive: true });
+    }
+
+    /* ── Floating add button: mirrors the page's own "add" button ── */
+    function initFab() {
+        var fab = $('appFab'); if (!fab) return;
+        var src = document.querySelector(
+            '.app-content .page-header [data-modal].btn-primary, ' +
+            '.app-content .page-header a.btn-primary[href*="/create"], ' +
+            '.app-content .page-header a.btn-primary[href$="/new"]'
+        );
+        var label = '', go = null;
+
+        if (src) {
+            label = (src.textContent || '').replace(/\s+/g, ' ').replace(/^\s*\+\s*/, '').trim();
+            src.classList.add('fab-source');
+            go = function () { src.click(); };
+        } else if (fab.dataset.defaultHref) {
+            label = fab.dataset.defaultLabel || '';
+            var href = fab.dataset.defaultHref;
+            go = function () { window.location.href = href; };
+        }
+        if (!go) return;                                      // nothing to add on this page → no FAB
+
+        var lab = fab.querySelector('.fab-label');
+        lab.textContent = label.length > 22 ? label.slice(0, 21) + '…' : label;
+        if (!label) fab.classList.add('compact');
+        fab.setAttribute('aria-label', label || 'Add');
+        fab.addEventListener('click', go);
+        fab.classList.add('ready');
+
+        // Shrink to icon-only while scrolling down, expand when scrolling up
+        var lastY = window.scrollY;
+        window.addEventListener('scroll', function () {
+            var y = window.scrollY;
+            if (Math.abs(y - lastY) < 8) return;
+            fab.classList.toggle('compact', y > lastY && y > 80);
+            lastY = y;
+        }, { passive: true });
+    }
+
+    /* ── Make sure no table can push the page sideways on a phone ── */
+    function wrapTables() {
+        document.querySelectorAll('.app-content table').forEach(function (t) {
+            if (t.closest('.table-wrap, .table-scroll, .no-scroll-wrap')) return;
+            var p = t.parentElement, cs = p ? getComputedStyle(p) : null;
+            if (cs && /(auto|scroll)/.test(cs.overflowX)) return;     // already scrolls
+            var w = document.createElement('div');
+            w.className = 'table-scroll';
+            t.parentNode.insertBefore(w, t);
+            w.appendChild(t);
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        var sb = $('sidebar');
+        initTooltips();
+        // First paint: no animation, so the sidebar doesn't visibly slide from 245px to 56px
+        if (sb) sb.style.transition = 'none';
+        applyLayout();
+        requestAnimationFrame(function () { if (sb) sb.style.transition = ''; });
+
+        if ($('bottomBar')) document.body.classList.add('has-bottom-bar');
+        initDrawerGestures();
+        initFab();
+        wrapTables();
+        (mq.addEventListener ? mq.addEventListener('change', applyLayout) : mq.addListener(applyLayout));
+    });
+})();

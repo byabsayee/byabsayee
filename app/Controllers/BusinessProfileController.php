@@ -10,6 +10,7 @@ class BusinessProfileController
         if (guest()) redirect('/login');
         $bookId = (int)$params['id'];
         $book   = $this->getBookOrFail($bookId);
+        if (!book_can($book, 'book_settings', 'view')) abort_403();
 
         $handle  = Database::row('SELECT handle FROM business_handles WHERE book_id=?', [$bookId]);
         $profile = Database::row('SELECT * FROM business_profiles WHERE book_id=?', [$bookId]);
@@ -32,7 +33,8 @@ class BusinessProfileController
         if (guest()) redirect('/login');
         csrf_verify();
         $bookId = (int)$params['id'];
-        $this->getBookOrFail($bookId);
+        $__book = $this->getBookOrFail($bookId);
+        if (!book_can($__book, 'book_settings', 'edit')) abort_403();
 
         $data = [
             'tagline'          => trim($_POST['tagline'] ?? ''),
@@ -94,7 +96,8 @@ class BusinessProfileController
         if (guest()) redirect('/login');
         csrf_verify();
         $bookId = (int)$params['id'];
-        $this->getBookOrFail($bookId);
+        $__book = $this->getBookOrFail($bookId);
+        if (!book_can($__book, 'book_settings', 'edit')) abort_403();
 
         $handle = strtolower(trim(ltrim($_POST['handle'] ?? ''), '@'));
         if (!preg_match('/^[a-z0-9_]{3,50}$/', $handle)) {
@@ -125,7 +128,8 @@ class BusinessProfileController
         if (guest()) redirect('/login');
         csrf_verify();
         $bookId = (int)$params['id'];
-        $this->getBookOrFail($bookId);
+        $__book = $this->getBookOrFail($bookId);
+        if (!book_can($__book, 'book_settings', 'edit')) abort_403();
 
         Database::run(
             'INSERT INTO business_profiles (book_id, page_about, page_terms, page_privacy)
@@ -143,7 +147,8 @@ class BusinessProfileController
         if (guest()) redirect('/login');
         csrf_verify();
         $bookId = (int)$params['id'];
-        $this->getBookOrFail($bookId);
+        $__book = $this->getBookOrFail($bookId);
+        if (!book_can($__book, 'book_settings', 'edit')) abort_403();
 
         $fields = ['social_facebook','social_instagram','social_twitter','social_linkedin','social_youtube','social_tiktok'];
         $updates = [];
@@ -185,7 +190,8 @@ class BusinessProfileController
         if (guest()) redirect('/login');
         csrf_verify();
         $bookId = (int)$params['id'];
-        $this->getBookOrFail($bookId);
+        $__book = $this->getBookOrFail($bookId);
+        if (!book_can($__book, 'book_settings', 'edit')) abort_403();
 
         $allFields = ['tagline','bio','logo','banner','founded_year','ceo_name','employee_count',
                       'industry','email','phone','whatsapp','address','social','external_links',
@@ -207,7 +213,8 @@ class BusinessProfileController
         if (guest()) redirect('/login');
         csrf_verify();
         $bookId = (int)$params['id'];
-        $this->getBookOrFail($bookId);
+        $__book = $this->getBookOrFail($bookId);
+        if (!book_can($__book, 'book_settings', 'edit')) abort_403();
 
         if (empty($_FILES['photo']['name']) || $_FILES['photo']['error'] !== 0) {
             redirect('/books/'.$bookId.'/business-profile?tab=photos', ['error' => 'No file uploaded.']);

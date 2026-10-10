@@ -62,6 +62,25 @@ class Database
         return $stmt;
     }
 
+    /**
+     * Run $fn inside one database transaction: everything is saved together or nothing is.
+     * Nested calls join the outer transaction. Returns whatever $fn returns; rethrows on failure.
+     */
+    public static function transaction(callable $fn): mixed
+    {
+        $pdo = self::get();
+        if ($pdo->inTransaction()) return $fn();
+        $pdo->beginTransaction();
+        try {
+            $result = $fn();
+            $pdo->commit();
+            return $result;
+        } catch (\Throwable $e) {
+            if ($pdo->inTransaction()) $pdo->rollBack();
+            throw $e;
+        }
+    }
+
     public static function lastId(): string
     {
         return self::get()->lastInsertId();

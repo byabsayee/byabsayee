@@ -1,384 +1,1213 @@
 -- =============================================================================
--- Byabsayee — Database Schema
--- Run this in phpMyAdmin or via:  mariadb -u root -p byabsayee_db < schema.sql
+-- Byabsayee — Database Schema (consolidated, current)
 -- =============================================================================
--- HOW TO CREATE THE DATABASE FIRST:
---   1. Open phpMyAdmin (your existing one)
---   2. Click "New" in the left sidebar
---   3. Name it: byabsayee_db
---   4. Collation: utf8mb4_unicode_ci  (supports Bengali + emoji)
---   5. Click Create
---   6. Then click "SQL" tab and paste this entire file
+-- This file creates EVERY table the application uses, including the profile / 2FA /
+-- session tables and the online-store integration tables that used to live only in
+-- separate migration scripts. Imported automatically on a fresh database by
+-- docker-entrypoint.sh; the idempotent migrations (bin/migrate_core.php and the
+-- public/migrate_*.php scripts) then run on every start and change nothing here.
+--
+-- Manual import:   mariadb -u root -p byabsayee_db < schema.sql
+-- Charset: utf8mb4 / utf8mb4_unicode_ci (Bengali + emoji).
 -- =============================================================================
 
 SET NAMES utf8mb4;
-SET time_zone = '+06:00';   -- Bangladesh Standard Time (BST = UTC+6)
-SET foreign_key_checks = 1;
+SET time_zone = '+06:00';
+SET foreign_key_checks = 0;
 
--- =============================================================================
--- USERS & AUTH TABLES
--- =============================================================================
-
--- The main users table
-CREATE TABLE IF NOT EXISTS `users` (
-    `id`                  INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    `name`                VARCHAR(120) NOT NULL,
-    `email`               VARCHAR(180) NOT NULL UNIQUE,
-    `password_hash`       VARCHAR(255) NOT NULL,
-    `avatar`              VARCHAR(255) NULL DEFAULT NULL,     -- path to profile photo
-    `phone`               VARCHAR(20)  NULL DEFAULT NULL,
-    `status`              ENUM('pending','active','suspended') NOT NULL DEFAULT 'pending',
-
-    -- App Settings (Settings page: Preferences + Notifications tabs)
-    `theme`                VARCHAR(10) NOT NULL DEFAULT 'light',
-    `language`             VARCHAR(5)  NOT NULL DEFAULT 'en',
-    `date_format`          VARCHAR(10) NOT NULL DEFAULT 'd M Y',
-    `timezone`             VARCHAR(50) NOT NULL DEFAULT 'Asia/Dhaka',
-    `default_currency`     VARCHAR(5)  NOT NULL DEFAULT 'BDT',
-    `email_notifications`  TINYINT(1)  NOT NULL DEFAULT 1,
-    `notification_prefs`   VARCHAR(500) NULL DEFAULT NULL,    -- JSON blob of granular notification toggles
-
-    -- Email verification
-    `verification_token`  VARCHAR(128) NULL DEFAULT NULL,
-    `email_verified_at`   DATETIME     NULL DEFAULT NULL,
-
-    -- Timestamps
-    `last_login_at`       DATETIME     NULL DEFAULT NULL,
-    `created_at`          DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `updated_at`          DATETIME     NULL ON UPDATE CURRENT_TIMESTAMP,
-    `deleted_at`          DATETIME     NULL DEFAULT NULL,   -- soft delete
-
-    INDEX `idx_email` (`email`),
-    INDEX `idx_status` (`status`)
+CREATE TABLE IF NOT EXISTS `activity_log` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `book_id` int(10) unsigned DEFAULT NULL,
+  `user_id` int(10) unsigned DEFAULT NULL,
+  `action` varchar(80) NOT NULL,
+  `subject_type` varchar(60) DEFAULT NULL,
+  `subject_id` int(10) unsigned DEFAULT NULL,
+  `description` text DEFAULT NULL,
+  `old_data` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`old_data`)),
+  `new_data` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`new_data`)),
+  `ip_address` varchar(45) DEFAULT NULL,
+  `user_agent` varchar(500) DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `idx_book` (`book_id`),
+  KEY `idx_user` (`user_id`),
+  KEY `idx_action` (`action`),
+  KEY `idx_date` (`created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-
--- Remember-me tokens (for "stay logged in")
-CREATE TABLE IF NOT EXISTS `remember_tokens` (
-    `id`          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    `user_id`     INT UNSIGNED NOT NULL,
-    `token`       VARCHAR(128) NOT NULL UNIQUE,  -- stored as SHA256 hash
-    `expires_at`  DATETIME NOT NULL,
-    `created_at`  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE,
-    INDEX `idx_token` (`token`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-
--- Password reset tokens
-CREATE TABLE IF NOT EXISTS `password_resets` (
-    `id`          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    `email`       VARCHAR(180) NOT NULL,
-    `token`       VARCHAR(128) NOT NULL,  -- stored as SHA256 hash
-    `expires_at`  DATETIME NOT NULL,
-    `created_at`  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    INDEX `idx_email` (`email`),
-    INDEX `idx_token` (`token`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-
--- =============================================================================
--- BOOKS
--- Each user can create multiple books (personal or business)
--- =============================================================================
-
-CREATE TABLE IF NOT EXISTS `books` (
-    `id`          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    `user_id`     INT UNSIGNED NOT NULL,
-    `name`        VARCHAR(120) NOT NULL,
-    `type`        ENUM('personal','business') NOT NULL DEFAULT 'personal',
-    `currency`    VARCHAR(10)  NOT NULL DEFAULT 'BDT',
-    `currency_symbol` VARCHAR(5) NOT NULL DEFAULT '৳',
-    `timezone`    VARCHAR(60)  NOT NULL DEFAULT 'Asia/Dhaka',
-    `color`       VARCHAR(7)   NOT NULL DEFAULT '#1a6b4a',  -- hex color for UI
-    `logo`        VARCHAR(255) NULL DEFAULT NULL,
-    `description` TEXT         NULL DEFAULT NULL,
-    `created_at`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `updated_at`  DATETIME     NULL ON UPDATE CURRENT_TIMESTAMP,
-    `deleted_at`  DATETIME     NULL DEFAULT NULL,
-
-    FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE,
-    INDEX `idx_user` (`user_id`),
-    INDEX `idx_type` (`type`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-
--- Business book details (extra info only business books need)
-CREATE TABLE IF NOT EXISTS `book_business_details` (
-    `book_id`          INT UNSIGNED PRIMARY KEY,
-    `business_name`    VARCHAR(180) NULL,
-    `trade_license`    VARCHAR(60)  NULL,
-    `tin`              VARCHAR(60)  NULL,
-    `bin`              VARCHAR(60)  NULL,   -- VAT registration
-    `address`          TEXT         NULL,
-    `phone`            VARCHAR(30)  NULL,
-    `email`            VARCHAR(180) NULL,
-    `website`          VARCHAR(255) NULL,
-    `invoice_prefix`   VARCHAR(20)  NOT NULL DEFAULT 'INV',
-    `invoice_counter`  INT UNSIGNED NOT NULL DEFAULT 1,
-    `footer_note`      TEXT         NULL,   -- appears on every invoice
-
-    FOREIGN KEY (`book_id`) REFERENCES `books`(`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-
--- =============================================================================
--- CONTACTS (personal book feature)
--- =============================================================================
-
-CREATE TABLE IF NOT EXISTS `contacts` (
-    `id`          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    `book_id`     INT UNSIGNED NOT NULL,
-    `name`        VARCHAR(120) NOT NULL,
-    `phone`       VARCHAR(30)  NULL,
-    `email`       VARCHAR(180) NULL,
-    `address`     TEXT         NULL,
-    `notes`       TEXT         NULL,
-    `photo`       VARCHAR(255) NULL,
-    `created_at`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `deleted_at`  DATETIME     NULL DEFAULT NULL,
-
-    FOREIGN KEY (`book_id`) REFERENCES `books`(`id`) ON DELETE CASCADE,
-    INDEX `idx_book` (`book_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-
--- =============================================================================
--- ENTRIES (personal book: income/expense records)
--- =============================================================================
-
-CREATE TABLE IF NOT EXISTS `entries` (
-    `id`           INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    `book_id`      INT UNSIGNED NOT NULL,
-    `contact_id`   INT UNSIGNED NULL DEFAULT NULL,
-    `type`         ENUM('in','out') NOT NULL,          -- income or expense
-    `title`        VARCHAR(255) NOT NULL,
-    `description`  TEXT         NULL,
-    `amount`       DECIMAL(15,2) NOT NULL DEFAULT 0.00,
-    `entry_date`   DATE         NOT NULL,
-    `entry_time`   TIME         NULL DEFAULT NULL,
-    `attachments`  JSON         NULL DEFAULT NULL,     -- array of file paths
-    `created_by`   INT UNSIGNED NULL,                  -- user who added it
-    `created_at`   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `updated_at`   DATETIME     NULL ON UPDATE CURRENT_TIMESTAMP,
-    `deleted_at`   DATETIME     NULL DEFAULT NULL,
-
-    FOREIGN KEY (`book_id`)    REFERENCES `books`(`id`)    ON DELETE CASCADE,
-    FOREIGN KEY (`contact_id`) REFERENCES `contacts`(`id`) ON DELETE SET NULL,
-    INDEX `idx_book`       (`book_id`),
-    INDEX `idx_type`       (`type`),
-    INDEX `idx_entry_date` (`entry_date`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-
--- =============================================================================
--- CUSTOMERS (business book)
--- =============================================================================
-
-CREATE TABLE IF NOT EXISTS `customers` (
-    `id`           INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    `book_id`      INT UNSIGNED NOT NULL,
-    `name`         VARCHAR(120) NOT NULL,
-    `phone`        VARCHAR(30)  NULL,
-    `email`        VARCHAR(180) NULL,
-    `address`      TEXT         NULL,
-    `trade_license` VARCHAR(60) NULL,
-    `points`       INT UNSIGNED NOT NULL DEFAULT 0,
-    `notes`        TEXT         NULL,
-    `photo`        VARCHAR(255) NULL,
-    `created_at`   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `deleted_at`   DATETIME     NULL DEFAULT NULL,
-
-    FOREIGN KEY (`book_id`) REFERENCES `books`(`id`) ON DELETE CASCADE,
-    INDEX `idx_book`  (`book_id`),
-    INDEX `idx_phone` (`phone`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-
--- =============================================================================
--- SUPPLIERS (business book)
--- =============================================================================
-
-CREATE TABLE IF NOT EXISTS `suppliers` (
-    `id`           INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    `book_id`      INT UNSIGNED NOT NULL,
-    `name`         VARCHAR(120) NOT NULL,
-    `company`      VARCHAR(180) NULL,
-    `phone`        VARCHAR(30)  NULL,
-    `email`        VARCHAR(180) NULL,
-    `address`      TEXT         NULL,
-    `notes`        TEXT         NULL,
-    `created_at`   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `deleted_at`   DATETIME     NULL DEFAULT NULL,
-
-    FOREIGN KEY (`book_id`) REFERENCES `books`(`id`) ON DELETE CASCADE,
-    INDEX `idx_book` (`book_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-
--- =============================================================================
--- PRODUCT CATEGORIES (business book, nested)
--- =============================================================================
-
-CREATE TABLE IF NOT EXISTS `categories` (
-    `id`          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    `book_id`     INT UNSIGNED NOT NULL,
-    `parent_id`   INT UNSIGNED NULL DEFAULT NULL,   -- NULL = top-level category
-    `name`        VARCHAR(120) NOT NULL,
-    `created_at`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    FOREIGN KEY (`book_id`)   REFERENCES `books`(`id`)      ON DELETE CASCADE,
-    FOREIGN KEY (`parent_id`) REFERENCES `categories`(`id`) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-
--- =============================================================================
--- PRODUCTS / STOCK ITEMS (business book)
--- =============================================================================
-
-CREATE TABLE IF NOT EXISTS `products` (
-    `id`                INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    `book_id`           INT UNSIGNED NOT NULL,
-    `category_id`       INT UNSIGNED NULL DEFAULT NULL,
-    `name`              VARCHAR(255) NOT NULL,
-    `sku`               VARCHAR(60)  NULL,              -- your internal code
-    `barcode`           VARCHAR(60)  NULL,
-    `description`       TEXT         NULL,
-    `unit`              VARCHAR(30)  NOT NULL DEFAULT 'pcs',  -- pcs, kg, ltr, etc.
-    `buy_price`         DECIMAL(15,2) NOT NULL DEFAULT 0.00,
-    `sell_price`        DECIMAL(15,2) NOT NULL DEFAULT 0.00,
-    `stock_qty`         DECIMAL(15,3) NOT NULL DEFAULT 0.000,
-    `low_stock_alert`   DECIMAL(15,3) NULL DEFAULT 5.000,    -- alert when below this
-    `image`             VARCHAR(255) NULL,
-    `created_at`        DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `updated_at`        DATETIME     NULL ON UPDATE CURRENT_TIMESTAMP,
-    `deleted_at`        DATETIME     NULL DEFAULT NULL,
-
-    FOREIGN KEY (`book_id`)     REFERENCES `books`(`id`)      ON DELETE CASCADE,
-    FOREIGN KEY (`category_id`) REFERENCES `categories`(`id`) ON DELETE SET NULL,
-    INDEX `idx_book` (`book_id`),
-    INDEX `idx_sku`  (`sku`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-
--- =============================================================================
--- INVOICES (business book)
--- =============================================================================
-
-CREATE TABLE IF NOT EXISTS `invoices` (
-    `id`            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    `book_id`       INT UNSIGNED NOT NULL,
-    `type`          ENUM('sale','purchase','pos') NOT NULL DEFAULT 'sale',
-    `invoice_no`    VARCHAR(30)  NOT NULL,
-    `customer_id`   INT UNSIGNED NULL DEFAULT NULL,
-    `supplier_id`   INT UNSIGNED NULL DEFAULT NULL,
-    `date`          DATE         NOT NULL,
-    `due_date`      DATE         NULL DEFAULT NULL,
-    `subtotal`      DECIMAL(15,2) NOT NULL DEFAULT 0.00,
-    `discount`      DECIMAL(15,2) NOT NULL DEFAULT 0.00,
-    `tax`           DECIMAL(15,2) NOT NULL DEFAULT 0.00,
-    `total`         DECIMAL(15,2) NOT NULL DEFAULT 0.00,
-    `paid`          DECIMAL(15,2) NOT NULL DEFAULT 0.00,
-    `status`        ENUM('draft','sent','partial','paid','overdue','cancelled') NOT NULL DEFAULT 'draft',
-    `notes`         TEXT         NULL,
-    `created_by`    INT UNSIGNED NULL,
-    `created_at`    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `updated_at`    DATETIME     NULL ON UPDATE CURRENT_TIMESTAMP,
-    `deleted_at`    DATETIME     NULL DEFAULT NULL,
-
-    FOREIGN KEY (`book_id`)     REFERENCES `books`(`id`)     ON DELETE CASCADE,
-    FOREIGN KEY (`customer_id`) REFERENCES `customers`(`id`) ON DELETE SET NULL,
-    FOREIGN KEY (`supplier_id`) REFERENCES `suppliers`(`id`) ON DELETE SET NULL,
-    INDEX `idx_book`       (`book_id`),
-    INDEX `idx_invoice_no` (`invoice_no`),
-    INDEX `idx_status`     (`status`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-
-CREATE TABLE IF NOT EXISTS `invoice_items` (
-    `id`           INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    `invoice_id`   INT UNSIGNED NOT NULL,
-    `product_id`   INT UNSIGNED NULL DEFAULT NULL,
-    `description`  VARCHAR(255) NOT NULL,
-    `qty`          DECIMAL(15,3) NOT NULL DEFAULT 1.000,
-    `unit_price`   DECIMAL(15,2) NOT NULL DEFAULT 0.00,
-    `discount_pct` DECIMAL(5,2)  NOT NULL DEFAULT 0.00,
-    `line_total`   DECIMAL(15,2) NOT NULL DEFAULT 0.00,
-
-    FOREIGN KEY (`invoice_id`) REFERENCES `invoices`(`id`) ON DELETE CASCADE,
-    FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-
--- =============================================================================
--- EMPLOYEES & ROLES (business book)
--- =============================================================================
-
-CREATE TABLE IF NOT EXISTS `roles` (
-    `id`              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    `book_id`         INT UNSIGNED NOT NULL,
-    `name`            VARCHAR(60)  NOT NULL,
-    `permissions`     JSON         NOT NULL DEFAULT ('{}'),
-    `created_at`      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    FOREIGN KEY (`book_id`) REFERENCES `books`(`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-
-CREATE TABLE IF NOT EXISTS `employees` (
-    `id`           INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    `book_id`      INT UNSIGNED NOT NULL,
-    `user_id`      INT UNSIGNED NULL DEFAULT NULL,  -- if they also have a login
-    `role_id`      INT UNSIGNED NULL DEFAULT NULL,
-    `name`         VARCHAR(120) NOT NULL,
-    `phone`        VARCHAR(30)  NULL,
-    `email`        VARCHAR(180) NULL,
-    `department`   VARCHAR(80)  NULL,
-    `join_date`    DATE         NULL,
-    `salary`       DECIMAL(12,2) NULL,
-    `salary_type`  ENUM('monthly','daily','hourly') NOT NULL DEFAULT 'monthly',
-    `bank_info`    TEXT         NULL,       -- stored encrypted in future phase
-    `photo`        VARCHAR(255) NULL,
-    `nid_image`    VARCHAR(255) NULL,
-    `status`       ENUM('active','inactive','terminated') NOT NULL DEFAULT 'active',
-    `created_at`   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `deleted_at`   DATETIME     NULL DEFAULT NULL,
-
-    FOREIGN KEY (`book_id`) REFERENCES `books`(`id`) ON DELETE CASCADE,
-    FOREIGN KEY (`role_id`) REFERENCES `roles`(`id`) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-
--- =============================================================================
--- AUDIT LOG — tracks every important action
--- =============================================================================
 
 CREATE TABLE IF NOT EXISTS `audit_log` (
-    `id`           BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    `book_id`      INT UNSIGNED NULL,
-    `user_id`      INT UNSIGNED NULL,
-    `action`       VARCHAR(60)  NOT NULL,   -- e.g. 'invoice.created', 'user.login'
-    `table_name`   VARCHAR(60)  NULL,
-    `record_id`    INT UNSIGNED NULL,
-    `old_values`   JSON         NULL,
-    `new_values`   JSON         NULL,
-    `ip_address`   VARCHAR(45)  NULL,
-    `created_at`   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    INDEX `idx_book`   (`book_id`),
-    INDEX `idx_user`   (`user_id`),
-    INDEX `idx_action` (`action`),
-    INDEX `idx_date`   (`created_at`)
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `book_id` int(10) unsigned DEFAULT NULL,
+  `user_id` int(10) unsigned DEFAULT NULL,
+  `action` varchar(60) NOT NULL,
+  `table_name` varchar(60) DEFAULT NULL,
+  `record_id` int(10) unsigned DEFAULT NULL,
+  `old_values` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`old_values`)),
+  `new_values` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`new_values`)),
+  `ip_address` varchar(45) DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `idx_book` (`book_id`),
+  KEY `idx_user` (`user_id`),
+  KEY `idx_action` (`action`),
+  KEY `idx_date` (`created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS `book_business_details` (
+  `book_id` int(10) unsigned NOT NULL,
+  `business_name` varchar(180) DEFAULT NULL,
+  `trade_license` varchar(60) DEFAULT NULL,
+  `tin` varchar(60) DEFAULT NULL,
+  `bin` varchar(60) DEFAULT NULL,
+  `address` text DEFAULT NULL,
+  `phone` varchar(30) DEFAULT NULL,
+  `email` varchar(180) DEFAULT NULL,
+  `website` varchar(255) DEFAULT NULL,
+  `invoice_prefix` varchar(20) NOT NULL DEFAULT 'INV',
+  `invoice_counter` int(10) unsigned NOT NULL DEFAULT 1,
+  `inventory_method` enum('FIFO','LIFO') NOT NULL DEFAULT 'FIFO',
+  `invoice_prefix_purchase` varchar(20) NOT NULL DEFAULT 'PUR',
+  `invoice_counter_purchase` int(10) unsigned NOT NULL DEFAULT 1,
+  `footer_note` text DEFAULT NULL,
+  `invoice_font` varchar(60) NOT NULL DEFAULT 'DejaVu Sans',
+  PRIMARY KEY (`book_id`),
+  CONSTRAINT `book_business_details_ibfk_1` FOREIGN KEY (`book_id`) REFERENCES `books` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- =============================================================================
--- SAMPLE DATA — creates a test user so you can log in immediately
--- Password is:  password123   (change after first login!)
--- =============================================================================
+CREATE TABLE IF NOT EXISTS `book_currencies` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `book_id` int(10) unsigned NOT NULL,
+  `code` varchar(10) NOT NULL DEFAULT 'BDT',
+  `symbol` varchar(5) NOT NULL DEFAULT '৳',
+  `name` varchar(80) DEFAULT NULL,
+  `is_default` tinyint(1) NOT NULL DEFAULT 1,
+  `sort_order` int(10) unsigned NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id`),
+  KEY `book_id` (`book_id`),
+  CONSTRAINT `book_currencies_ibfk_1` FOREIGN KEY (`book_id`) REFERENCES `books` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS `book_members` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `book_id` int(10) unsigned NOT NULL,
+  `user_id` int(10) unsigned NOT NULL,
+  `designation_id` int(10) unsigned DEFAULT NULL,
+  `designation_name` varchar(120) DEFAULT NULL,
+  `permissions` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`permissions`)),
+  `status` enum('active','inactive','pending','terminated') NOT NULL DEFAULT 'active',
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_book_user` (`book_id`,`user_id`),
+  KEY `user_id` (`user_id`),
+  CONSTRAINT `book_members_ibfk_1` FOREIGN KEY (`book_id`) REFERENCES `books` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `book_members_ibfk_2` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `books` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` int(10) unsigned NOT NULL,
+  `name` varchar(120) NOT NULL,
+  `type` enum('personal','business') NOT NULL DEFAULT 'personal',
+  `currency` varchar(10) NOT NULL DEFAULT 'BDT',
+  `currency_symbol` varchar(5) NOT NULL DEFAULT '৳',
+  `timezone` varchar(60) NOT NULL DEFAULT 'Asia/Dhaka',
+  `color` varchar(7) NOT NULL DEFAULT '#1a6b4a',
+  `theme_color` varchar(7) DEFAULT '#1a6b4a',
+  `logo` varchar(255) DEFAULT NULL,
+  `description` text DEFAULT NULL,
+  `email` varchar(180) DEFAULT NULL,
+  `phone` varchar(30) DEFAULT NULL,
+  `address` text DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `updated_at` datetime DEFAULT NULL ON UPDATE current_timestamp(),
+  `deleted_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_user` (`user_id`),
+  KEY `idx_type` (`type`),
+  CONSTRAINT `books_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `business_handles` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `book_id` int(10) unsigned NOT NULL,
+  `handle` varchar(80) NOT NULL COMMENT 'Unique @businessname',
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `updated_at` datetime DEFAULT NULL ON UPDATE current_timestamp(),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_handle` (`handle`),
+  UNIQUE KEY `uq_book_id` (`book_id`),
+  KEY `idx_book_id` (`book_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `business_profiles` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `book_id` int(10) unsigned NOT NULL,
+  `tagline` varchar(300) DEFAULT NULL,
+  `bio` text DEFAULT NULL,
+  `logo` varchar(255) DEFAULT NULL,
+  `banner` varchar(255) DEFAULT NULL,
+  `theme_color` varchar(10) DEFAULT '#1a6b4a',
+  `founded_year` year(4) DEFAULT NULL,
+  `ceo_name` varchar(200) DEFAULT NULL,
+  `employee_count` varchar(50) DEFAULT NULL COMMENT 'e.g. 10-50, 100+',
+  `industry` varchar(200) DEFAULT NULL,
+  `website` varchar(300) DEFAULT NULL,
+  `whatsapp` varchar(30) DEFAULT NULL,
+  `whatsapp_country` varchar(10) DEFAULT NULL,
+  `email` varchar(255) DEFAULT NULL,
+  `phone` varchar(50) DEFAULT NULL,
+  `address` text DEFAULT NULL,
+  `city` varchar(100) DEFAULT NULL,
+  `country` varchar(100) DEFAULT NULL,
+  `page_about` longtext DEFAULT NULL,
+  `page_terms` longtext DEFAULT NULL,
+  `page_privacy` longtext DEFAULT NULL,
+  `social_facebook` varchar(300) DEFAULT NULL,
+  `social_instagram` varchar(300) DEFAULT NULL,
+  `social_twitter` varchar(300) DEFAULT NULL,
+  `social_linkedin` varchar(300) DEFAULT NULL,
+  `social_youtube` varchar(300) DEFAULT NULL,
+  `social_tiktok` varchar(300) DEFAULT NULL,
+  `external_links` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT 'Array of {label, url}' CHECK (json_valid(`external_links`)),
+  `photos` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT 'Array of uploaded photo paths' CHECK (json_valid(`photos`)),
+  `visibility_flags` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT 'Which sections are public' CHECK (json_valid(`visibility_flags`)),
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `updated_at` datetime DEFAULT NULL ON UPDATE current_timestamp(),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_book_id` (`book_id`),
+  KEY `idx_book_id` (`book_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `categories` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `book_id` int(10) unsigned NOT NULL,
+  `parent_id` int(10) unsigned DEFAULT NULL,
+  `name` varchar(120) NOT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `description` text DEFAULT NULL,
+  `sort_order` int(11) NOT NULL DEFAULT 0,
+  `is_active` tinyint(1) NOT NULL DEFAULT 1,
+  PRIMARY KEY (`id`),
+  KEY `book_id` (`book_id`),
+  KEY `parent_id` (`parent_id`),
+  CONSTRAINT `categories_ibfk_1` FOREIGN KEY (`book_id`) REFERENCES `books` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `categories_ibfk_2` FOREIGN KEY (`parent_id`) REFERENCES `categories` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `contacts` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `book_id` int(10) unsigned NOT NULL,
+  `name` varchar(120) NOT NULL,
+  `phone` varchar(30) DEFAULT NULL,
+  `email` varchar(180) DEFAULT NULL,
+  `address` text DEFAULT NULL,
+  `notes` text DEFAULT NULL,
+  `photo` varchar(255) DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `deleted_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_book` (`book_id`),
+  CONSTRAINT `contacts_ibfk_1` FOREIGN KEY (`book_id`) REFERENCES `books` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `coupons` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `book_id` int(10) unsigned NOT NULL,
+  `name` varchar(120) NOT NULL,
+  `code` varchar(30) NOT NULL,
+  `discount_type` enum('fixed','percent') NOT NULL DEFAULT 'fixed',
+  `discount_value` decimal(10,2) NOT NULL DEFAULT 0.00,
+  `note` text DEFAULT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT 1,
+  `expires_at` datetime DEFAULT NULL,
+  `created_by` int(10) unsigned DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `updated_at` datetime DEFAULT NULL ON UPDATE current_timestamp(),
+  `max_discount` decimal(10,2) DEFAULT NULL,
+  `min_subtotal` decimal(15,2) NOT NULL DEFAULT 0.00,
+  `starts_at` datetime DEFAULT NULL,
+  `usage_limit` int(10) unsigned DEFAULT NULL,
+  `per_customer_limit` int(10) unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_book_code` (`book_id`,`code`),
+  CONSTRAINT `coupons_ibfk_1` FOREIGN KEY (`book_id`) REFERENCES `books` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `customer_privilege_assignments` (
+  `customer_id` int(10) unsigned NOT NULL,
+  `privilege_id` int(10) unsigned NOT NULL,
+  PRIMARY KEY (`customer_id`,`privilege_id`),
+  KEY `privilege_id` (`privilege_id`),
+  CONSTRAINT `customer_privilege_assignments_ibfk_1` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `customer_privilege_assignments_ibfk_2` FOREIGN KEY (`privilege_id`) REFERENCES `customer_privileges` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `customer_privileges` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `book_id` int(10) unsigned NOT NULL,
+  `name` varchar(80) NOT NULL,
+  `discount_type` enum('fixed','percent') NOT NULL DEFAULT 'percent',
+  `discount_value` decimal(10,2) NOT NULL DEFAULT 0.00,
+  `description` text DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `idx_book` (`book_id`),
+  CONSTRAINT `customer_privileges_ibfk_1` FOREIGN KEY (`book_id`) REFERENCES `books` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `customers` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `book_id` int(10) unsigned NOT NULL,
+  `name` varchar(120) NOT NULL,
+  `phone` varchar(30) DEFAULT NULL,
+  `email` varchar(180) DEFAULT NULL,
+  `address` text DEFAULT NULL,
+  `trade_license` varchar(60) DEFAULT NULL,
+  `points` int(10) unsigned NOT NULL DEFAULT 0,
+  `privilege_id` int(10) unsigned DEFAULT NULL,
+  `notes` text DEFAULT NULL,
+  `photo` varchar(255) DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `deleted_at` datetime DEFAULT NULL,
+  `city` varchar(100) DEFAULT NULL,
+  `state` varchar(100) DEFAULT NULL,
+  `zip` varchar(20) DEFAULT NULL,
+  `import_batch` int(10) unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_book` (`book_id`),
+  KEY `idx_phone` (`phone`),
+  CONSTRAINT `customers_ibfk_1` FOREIGN KEY (`book_id`) REFERENCES `books` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `debt_payments` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `debt_id` int(10) unsigned NOT NULL,
+  `book_id` int(10) unsigned NOT NULL,
+  `amount` decimal(15,2) NOT NULL,
+  `payment_method` varchar(60) NOT NULL DEFAULT 'cash',
+  `note` text DEFAULT NULL,
+  `paid_by` int(10) unsigned DEFAULT NULL,
+  `paid_at` datetime NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `debt_id` (`debt_id`),
+  CONSTRAINT `debt_payments_ibfk_1` FOREIGN KEY (`debt_id`) REFERENCES `debts` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `debts` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `book_id` int(10) unsigned NOT NULL,
+  `supplier_id` int(10) unsigned DEFAULT NULL,
+  `invoice_id` int(10) unsigned DEFAULT NULL,
+  `title` varchar(255) NOT NULL,
+  `party` varchar(120) DEFAULT NULL,
+  `amount` decimal(15,2) NOT NULL DEFAULT 0.00,
+  `paid_amount` decimal(15,2) NOT NULL DEFAULT 0.00,
+  `due_date` date DEFAULT NULL,
+  `note` text DEFAULT NULL,
+  `status` enum('unpaid','partial','paid','cancelled') NOT NULL DEFAULT 'unpaid',
+  `created_by` int(10) unsigned DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `updated_at` datetime DEFAULT NULL ON UPDATE current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `book_id` (`book_id`),
+  KEY `supplier_id` (`supplier_id`),
+  KEY `idx_debts_invoice` (`invoice_id`),
+  CONSTRAINT `debts_ibfk_1` FOREIGN KEY (`book_id`) REFERENCES `books` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `debts_ibfk_2` FOREIGN KEY (`supplier_id`) REFERENCES `suppliers` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `debts_ibfk_3` FOREIGN KEY (`invoice_id`) REFERENCES `invoices` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `designations` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `book_id` int(10) unsigned NOT NULL,
+  `name` varchar(80) NOT NULL,
+  `permissions` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`permissions`)),
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `updated_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_book` (`book_id`),
+  CONSTRAINT `designations_ibfk_1` FOREIGN KEY (`book_id`) REFERENCES `books` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `due_payments` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `due_id` int(10) unsigned NOT NULL,
+  `book_id` int(10) unsigned NOT NULL,
+  `amount` decimal(15,2) NOT NULL,
+  `payment_method` varchar(60) NOT NULL DEFAULT 'cash',
+  `note` text DEFAULT NULL,
+  `paid_by` int(10) unsigned DEFAULT NULL,
+  `paid_at` datetime NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `due_id` (`due_id`),
+  CONSTRAINT `due_payments_ibfk_1` FOREIGN KEY (`due_id`) REFERENCES `dues` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `dues` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `book_id` int(10) unsigned NOT NULL,
+  `customer_id` int(10) unsigned DEFAULT NULL,
+  `invoice_id` int(10) unsigned DEFAULT NULL,
+  `title` varchar(255) NOT NULL,
+  `amount` decimal(15,2) NOT NULL DEFAULT 0.00,
+  `paid_amount` decimal(15,2) NOT NULL DEFAULT 0.00,
+  `due_date` date DEFAULT NULL,
+  `note` text DEFAULT NULL,
+  `status` enum('unpaid','partial','paid','cancelled') NOT NULL DEFAULT 'unpaid',
+  `created_by` int(10) unsigned DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `updated_at` datetime DEFAULT NULL ON UPDATE current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `book_id` (`book_id`),
+  KEY `customer_id` (`customer_id`),
+  KEY `idx_dues_invoice` (`invoice_id`),
+  CONSTRAINT `dues_ibfk_1` FOREIGN KEY (`book_id`) REFERENCES `books` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `dues_ibfk_2` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `dues_ibfk_3` FOREIGN KEY (`invoice_id`) REFERENCES `invoices` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `email_verifications` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` int(10) unsigned NOT NULL,
+  `token` varchar(64) NOT NULL,
+  `expires_at` datetime NOT NULL,
+  `used_at` datetime DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `idx_token` (`token`),
+  KEY `idx_user_id` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `employee_invitations` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `book_id` int(10) unsigned NOT NULL,
+  `invited_by` int(10) unsigned DEFAULT NULL,
+  `email` varchar(180) NOT NULL,
+  `user_id` int(10) unsigned DEFAULT NULL,
+  `designation_id` int(10) unsigned DEFAULT NULL,
+  `designation_name` varchar(120) DEFAULT NULL,
+  `permissions` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`permissions`)),
+  `token` varchar(80) NOT NULL,
+  `status` enum('pending','accepted','expired','cancelled') NOT NULL DEFAULT 'pending',
+  `expires_at` datetime DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_token` (`token`),
+  KEY `book_id` (`book_id`),
+  CONSTRAINT `employee_invitations_ibfk_1` FOREIGN KEY (`book_id`) REFERENCES `books` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `employee_salary_payments` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `book_id` int(10) unsigned NOT NULL,
+  `employee_id` int(10) unsigned NOT NULL,
+  `expense_id` int(10) unsigned DEFAULT NULL,
+  `amount` decimal(15,2) NOT NULL DEFAULT 0.00,
+  `period_label` varchar(60) DEFAULT NULL,
+  `period_from` date DEFAULT NULL,
+  `period_to` date DEFAULT NULL,
+  `payment_method` varchar(80) DEFAULT NULL,
+  `note` text DEFAULT NULL,
+  `created_by` int(10) unsigned DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `idx_book` (`book_id`),
+  KEY `idx_employee` (`employee_id`),
+  CONSTRAINT `employee_salary_payments_ibfk_1` FOREIGN KEY (`book_id`) REFERENCES `books` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `employee_salary_payments_ibfk_2` FOREIGN KEY (`employee_id`) REFERENCES `employees` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `employees` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `book_id` int(10) unsigned NOT NULL,
+  `emp_code` varchar(30) DEFAULT NULL,
+  `user_id` int(10) unsigned DEFAULT NULL,
+  `role_id` int(10) unsigned DEFAULT NULL,
+  `designation_id` int(10) unsigned DEFAULT NULL,
+  `designation_name` varchar(120) DEFAULT NULL,
+  `invitation_id` int(10) unsigned DEFAULT NULL,
+  `name` varchar(120) NOT NULL,
+  `phone` varchar(30) DEFAULT NULL,
+  `email` varchar(180) DEFAULT NULL,
+  `address` text DEFAULT NULL,
+  `department` varchar(80) DEFAULT NULL,
+  `join_date` date DEFAULT NULL,
+  `salary` decimal(12,2) DEFAULT NULL,
+  `salary_type` enum('monthly','daily','hourly') NOT NULL DEFAULT 'monthly',
+  `bank_info` text DEFAULT NULL,
+  `notes` text DEFAULT NULL,
+  `photo` varchar(255) DEFAULT NULL,
+  `nid_image` varchar(255) DEFAULT NULL,
+  `status` enum('active','inactive','terminated') NOT NULL DEFAULT 'active',
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `deleted_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `book_id` (`book_id`),
+  KEY `role_id` (`role_id`),
+  CONSTRAINT `employees_ibfk_1` FOREIGN KEY (`book_id`) REFERENCES `books` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `employees_ibfk_2` FOREIGN KEY (`role_id`) REFERENCES `roles` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `entries` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `book_id` int(10) unsigned NOT NULL,
+  `contact_id` int(10) unsigned DEFAULT NULL,
+  `type` enum('in','out') NOT NULL,
+  `title` varchar(255) NOT NULL,
+  `description` text DEFAULT NULL,
+  `amount` decimal(15,2) NOT NULL DEFAULT 0.00,
+  `entry_date` date NOT NULL,
+  `entry_time` time DEFAULT NULL,
+  `attachments` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`attachments`)),
+  `created_by` int(10) unsigned DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `updated_at` datetime DEFAULT NULL ON UPDATE current_timestamp(),
+  `deleted_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `contact_id` (`contact_id`),
+  KEY `idx_book` (`book_id`),
+  KEY `idx_type` (`type`),
+  KEY `idx_entry_date` (`entry_date`),
+  CONSTRAINT `entries_ibfk_1` FOREIGN KEY (`book_id`) REFERENCES `books` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `entries_ibfk_2` FOREIGN KEY (`contact_id`) REFERENCES `contacts` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `expense_categories` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `book_id` int(10) unsigned NOT NULL,
+  `name` varchar(120) NOT NULL,
+  `icon` varchar(60) NOT NULL DEFAULT 'fa-tag',
+  `is_active` tinyint(1) NOT NULL DEFAULT 1,
+  PRIMARY KEY (`id`),
+  KEY `book_id` (`book_id`),
+  CONSTRAINT `expense_categories_ibfk_1` FOREIGN KEY (`book_id`) REFERENCES `books` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `expenses` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `book_id` int(10) unsigned NOT NULL,
+  `category_id` int(10) unsigned DEFAULT NULL,
+  `title` varchar(255) NOT NULL,
+  `amount` decimal(15,2) NOT NULL DEFAULT 0.00,
+  `expense_date` date NOT NULL,
+  `paid_to` varchar(120) DEFAULT NULL,
+  `note` text DEFAULT NULL,
+  `attachment` varchar(255) DEFAULT NULL,
+  `created_by` int(10) unsigned DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `updated_at` datetime DEFAULT NULL ON UPDATE current_timestamp(),
+  `source_table` varchar(40) DEFAULT NULL,
+  `source_id` int(10) unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `book_id` (`book_id`),
+  KEY `category_id` (`category_id`),
+  KEY `idx_exp_source` (`source_table`,`source_id`),
+  CONSTRAINT `expenses_ibfk_1` FOREIGN KEY (`book_id`) REFERENCES `books` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `expenses_ibfk_2` FOREIGN KEY (`category_id`) REFERENCES `expense_categories` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `funds` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `book_id` int(10) unsigned NOT NULL,
+  `type` enum('in','out') NOT NULL DEFAULT 'in',
+  `title` varchar(255) NOT NULL,
+  `amount` decimal(15,2) NOT NULL DEFAULT 0.00,
+  `fund_date` date NOT NULL,
+  `note` text DEFAULT NULL,
+  `created_by` int(10) unsigned DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `updated_at` datetime DEFAULT NULL ON UPDATE current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `book_id` (`book_id`),
+  CONSTRAINT `funds_ibfk_1` FOREIGN KEY (`book_id`) REFERENCES `books` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `integration_connections` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `book_id` int(10) unsigned NOT NULL,
+  `connection_id` char(36) NOT NULL,
+  `site_domain` varchar(190) NOT NULL,
+  `status` enum('pending','verifying','active','paused','revoked') NOT NULL DEFAULT 'pending',
+  `authority` enum('book','site') NOT NULL DEFAULT 'book',
+  `scopes` text DEFAULT NULL,
+  `api_key_hash` char(64) DEFAULT NULL,
+  `api_key_enc` text DEFAULT NULL,
+  `secret_site_to_book_enc` text DEFAULT NULL,
+  `secret_book_to_site_enc` text DEFAULT NULL,
+  `pairing_hash` char(64) DEFAULT NULL,
+  `pairing_expires_at` datetime DEFAULT NULL,
+  `api_version` varchar(10) DEFAULT NULL,
+  `peer_module_version` varchar(40) DEFAULT NULL,
+  `peer_capabilities` text DEFAULT NULL,
+  `site_info` mediumtext DEFAULT NULL,
+  `shared_config` text DEFAULT NULL,
+  `verified_at` datetime DEFAULT NULL,
+  `activated_at` datetime DEFAULT NULL,
+  `last_sync_at` datetime DEFAULT NULL,
+  `last_error` varchar(500) DEFAULT NULL,
+  `verify_attempts` int(10) unsigned NOT NULL DEFAULT 0,
+  `next_verify_at` datetime DEFAULT NULL,
+  `created_by` int(10) unsigned DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `updated_at` datetime DEFAULT NULL ON UPDATE current_timestamp(),
+  `last_reconcile` mediumtext DEFAULT NULL,
+  `last_reconcile_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_book` (`book_id`),
+  UNIQUE KEY `uq_domain` (`site_domain`),
+  UNIQUE KEY `uq_connection` (`connection_id`),
+  CONSTRAINT `integration_connections_ibfk_1` FOREIGN KEY (`book_id`) REFERENCES `books` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `invoice_attachments` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `invoice_id` int(10) unsigned NOT NULL,
+  `filename` varchar(255) NOT NULL,
+  `path` varchar(500) NOT NULL,
+  `size` int(10) unsigned NOT NULL DEFAULT 0,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `invoice_id` (`invoice_id`),
+  CONSTRAINT `invoice_attachments_ibfk_1` FOREIGN KEY (`invoice_id`) REFERENCES `invoices` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `invoice_items` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `invoice_id` int(10) unsigned NOT NULL,
+  `product_id` int(10) unsigned DEFAULT NULL,
+  `description` varchar(255) NOT NULL,
+  `variant` varchar(120) DEFAULT NULL,
+  `qty` decimal(15,3) NOT NULL DEFAULT 1.000,
+  `unit_price` decimal(15,2) NOT NULL DEFAULT 0.00,
+  `discount_pct` decimal(5,2) NOT NULL DEFAULT 0.00,
+  `line_total` decimal(15,2) NOT NULL DEFAULT 0.00,
+  PRIMARY KEY (`id`),
+  KEY `invoice_id` (`invoice_id`),
+  KEY `product_id` (`product_id`),
+  CONSTRAINT `invoice_items_ibfk_1` FOREIGN KEY (`invoice_id`) REFERENCES `invoices` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `invoice_items_ibfk_2` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `invoice_method_options` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `book_id` int(10) unsigned NOT NULL,
+  `type` enum('delivery','payment') NOT NULL,
+  `label` varchar(120) NOT NULL,
+  `sort_order` int(10) unsigned NOT NULL DEFAULT 0,
+  `is_active` tinyint(1) NOT NULL DEFAULT 1,
+  `code` varchar(40) DEFAULT NULL,
+  `kind` varchar(10) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `book_id` (`book_id`),
+  CONSTRAINT `invoice_method_options_ibfk_1` FOREIGN KEY (`book_id`) REFERENCES `books` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `invoices` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `book_id` int(10) unsigned NOT NULL,
+  `type` enum('sale','purchase','pos') NOT NULL DEFAULT 'sale',
+  `invoice_no` varchar(30) NOT NULL,
+  `customer_id` int(10) unsigned DEFAULT NULL,
+  `supplier_id` int(10) unsigned DEFAULT NULL,
+  `date` date NOT NULL,
+  `due_date` date DEFAULT NULL,
+  `subtotal` decimal(15,2) NOT NULL DEFAULT 0.00,
+  `discount` decimal(15,2) NOT NULL DEFAULT 0.00,
+  `points_discount` decimal(15,2) NOT NULL DEFAULT 0.00,
+  `delivery_charge` decimal(15,2) NOT NULL DEFAULT 0.00,
+  `handling_charge` decimal(15,2) NOT NULL DEFAULT 0.00,
+  `delivery_type` varchar(30) DEFAULT 'own',
+  `rounding` decimal(10,4) NOT NULL DEFAULT 0.0000,
+  `tax` decimal(15,2) NOT NULL DEFAULT 0.00,
+  `total` decimal(15,2) NOT NULL DEFAULT 0.00,
+  `paid` decimal(15,2) NOT NULL DEFAULT 0.00,
+  `status` enum('draft','sent','partial','paid','overdue','cancelled') NOT NULL DEFAULT 'draft',
+  `notes` text DEFAULT NULL,
+  `note_customer` text DEFAULT NULL,
+  `note_seller` text DEFAULT NULL,
+  `delivery_method` varchar(120) DEFAULT NULL,
+  `payment_method` varchar(120) DEFAULT NULL,
+  `theme_color` varchar(7) DEFAULT '#1a6b4a',
+  `currency_symbol` varchar(5) NOT NULL DEFAULT '৳',
+  `currency_code` varchar(10) NOT NULL DEFAULT 'BDT',
+  `public_token` varchar(40) DEFAULT NULL,
+  `coupon_code` varchar(30) DEFAULT NULL,
+  `coupon_discount` decimal(15,2) NOT NULL DEFAULT 0.00,
+  `privilege_discount` decimal(15,2) NOT NULL DEFAULT 0.00,
+  `created_by` int(10) unsigned DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `updated_at` datetime DEFAULT NULL ON UPDATE current_timestamp(),
+  `deleted_at` datetime DEFAULT NULL,
+  `source` varchar(20) DEFAULT NULL,
+  `fulfilment_status` varchar(20) DEFAULT NULL,
+  `external_number` varchar(60) DEFAULT NULL,
+  `sync_to_store` tinyint(1) NOT NULL DEFAULT 0,
+  `tax_inclusive` tinyint(1) NOT NULL DEFAULT 0,
+  `stock_deducted` tinyint(1) NOT NULL DEFAULT 1,
+  `order_meta` mediumtext DEFAULT NULL,
+  `import_batch` int(10) unsigned DEFAULT NULL,
+  `points_awarded` int(11) NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id`),
+  KEY `customer_id` (`customer_id`),
+  KEY `supplier_id` (`supplier_id`),
+  KEY `idx_book` (`book_id`),
+  KEY `idx_invoice_no` (`invoice_no`),
+  KEY `idx_status` (`status`),
+  KEY `idx_source` (`book_id`,`source`),
+  KEY `idx_inv_book_type_date` (`book_id`,`type`,`date`),
+  CONSTRAINT `invoices_ibfk_1` FOREIGN KEY (`book_id`) REFERENCES `books` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `invoices_ibfk_2` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `invoices_ibfk_3` FOREIGN KEY (`supplier_id`) REFERENCES `suppliers` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `notifications` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` int(10) unsigned NOT NULL,
+  `book_id` int(10) unsigned DEFAULT NULL,
+  `type` varchar(40) NOT NULL DEFAULT 'info',
+  `title` varchar(255) NOT NULL,
+  `body` text DEFAULT NULL,
+  `action_url` varchar(400) DEFAULT NULL,
+  `data` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`data`)),
+  `read_at` datetime DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `idx_user` (`user_id`),
+  KEY `idx_book` (`book_id`),
+  KEY `idx_read_at` (`read_at`),
+  CONSTRAINT `notifications_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `password_resets` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `email` varchar(180) NOT NULL,
+  `token` varchar(128) NOT NULL,
+  `expires_at` datetime NOT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `idx_email` (`email`),
+  KEY `idx_token` (`token`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `payments` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `invoice_id` int(10) unsigned NOT NULL,
+  `amount` decimal(15,2) NOT NULL,
+  `method` varchar(60) NOT NULL DEFAULT 'cash',
+  `date` date NOT NULL,
+  `note` text DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `status` varchar(10) NOT NULL DEFAULT 'recorded',
+  `paid_at` datetime DEFAULT NULL,
+  `reference` varchar(120) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_pay_invoice` (`invoice_id`),
+  CONSTRAINT `payments_ibfk_1` FOREIGN KEY (`invoice_id`) REFERENCES `invoices` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `product_batches` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `product_id` int(10) unsigned NOT NULL,
+  `book_id` int(10) unsigned NOT NULL,
+  `barcode` varchar(60) DEFAULT NULL,
+  `buy_price` decimal(15,2) NOT NULL DEFAULT 0.00,
+  `sell_price` decimal(15,2) NOT NULL DEFAULT 0.00,
+  `initial_qty` decimal(15,3) NOT NULL DEFAULT 0.000,
+  `remaining_qty` decimal(15,3) NOT NULL DEFAULT 0.000,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `product_id` (`product_id`),
+  CONSTRAINT `product_batches_ibfk_1` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `product_variants` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `product_id` int(10) unsigned NOT NULL,
+  `label` varchar(60) NOT NULL,
+  `value` varchar(120) NOT NULL,
+  `sku` varchar(60) DEFAULT NULL,
+  `price_adj` decimal(15,2) NOT NULL DEFAULT 0.00,
+  `stock_qty` decimal(15,3) NOT NULL DEFAULT 0.000,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `idx_product` (`product_id`),
+  CONSTRAINT `product_variants_ibfk_1` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `products` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `book_id` int(10) unsigned NOT NULL,
+  `category_id` int(10) unsigned DEFAULT NULL,
+  `name` varchar(255) NOT NULL,
+  `sku` varchar(60) DEFAULT NULL,
+  `product_code` varchar(60) DEFAULT NULL,
+  `barcode` varchar(60) DEFAULT NULL,
+  `description` text DEFAULT NULL,
+  `unit` varchar(30) NOT NULL DEFAULT 'pcs',
+  `buy_price` decimal(15,2) NOT NULL DEFAULT 0.00,
+  `sell_price` decimal(15,2) NOT NULL DEFAULT 0.00,
+  `stock_qty` decimal(15,3) NOT NULL DEFAULT 0.000,
+  `low_stock_alert` decimal(15,3) DEFAULT 5.000,
+  `image` varchar(255) DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `updated_at` datetime DEFAULT NULL ON UPDATE current_timestamp(),
+  `deleted_at` datetime DEFAULT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT 1,
+  `weight_grams` int(10) unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `category_id` (`category_id`),
+  KEY `idx_book` (`book_id`),
+  KEY `idx_sku` (`sku`),
+  CONSTRAINT `products_ibfk_1` FOREIGN KEY (`book_id`) REFERENCES `books` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `products_ibfk_2` FOREIGN KEY (`category_id`) REFERENCES `categories` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `remember_tokens` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` int(10) unsigned NOT NULL,
+  `token` varchar(128) NOT NULL,
+  `expires_at` datetime NOT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `token` (`token`),
+  KEY `user_id` (`user_id`),
+  KEY `idx_token` (`token`),
+  CONSTRAINT `remember_tokens_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `report_entries` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `book_id` int(10) unsigned NOT NULL,
+  `type` enum('in','out') NOT NULL,
+  `category` varchar(60) NOT NULL,
+  `amount` decimal(15,2) NOT NULL DEFAULT 0.00,
+  `description` varchar(255) DEFAULT NULL,
+  `source_table` varchar(60) DEFAULT NULL,
+  `source_id` int(10) unsigned DEFAULT NULL,
+  `date` date NOT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `book_id` (`book_id`),
+  CONSTRAINT `report_entries_ibfk_1` FOREIGN KEY (`book_id`) REFERENCES `books` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `return_items` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `return_id` int(10) unsigned NOT NULL,
+  `product_id` int(10) unsigned DEFAULT NULL,
+  `description` varchar(255) NOT NULL,
+  `qty` decimal(15,3) NOT NULL DEFAULT 0.000,
+  `unit_price` decimal(15,2) NOT NULL DEFAULT 0.00,
+  `line_total` decimal(15,2) NOT NULL DEFAULT 0.00,
+  PRIMARY KEY (`id`),
+  KEY `return_id` (`return_id`),
+  KEY `product_id` (`product_id`),
+  CONSTRAINT `return_items_ibfk_1` FOREIGN KEY (`return_id`) REFERENCES `returns` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `return_items_ibfk_2` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `returns` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `book_id` int(10) unsigned NOT NULL,
+  `invoice_id` int(10) unsigned DEFAULT NULL,
+  `type` enum('sales_return','purchase_return') NOT NULL,
+  `return_no` varchar(40) NOT NULL,
+  `date` date NOT NULL,
+  `customer_id` int(10) unsigned DEFAULT NULL,
+  `supplier_id` int(10) unsigned DEFAULT NULL,
+  `subtotal` decimal(15,2) NOT NULL DEFAULT 0.00,
+  `discount` decimal(15,2) NOT NULL DEFAULT 0.00,
+  `delivery_charge` decimal(15,2) NOT NULL DEFAULT 0.00,
+  `total_refund` decimal(15,2) NOT NULL DEFAULT 0.00,
+  `remarks` text DEFAULT NULL,
+  `status` varchar(20) NOT NULL DEFAULT 'completed',
+  `created_by` int(10) unsigned DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `deleted_at` datetime DEFAULT NULL,
+  `refund_method` varchar(120) DEFAULT NULL,
+  `due_adjustment` decimal(15,2) NOT NULL DEFAULT 0.00,
+  `cash_refund` decimal(15,2) NOT NULL DEFAULT 0.00,
+  PRIMARY KEY (`id`),
+  KEY `invoice_id` (`invoice_id`),
+  KEY `customer_id` (`customer_id`),
+  KEY `supplier_id` (`supplier_id`),
+  KEY `idx_book` (`book_id`),
+  CONSTRAINT `returns_ibfk_1` FOREIGN KEY (`book_id`) REFERENCES `books` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `returns_ibfk_2` FOREIGN KEY (`invoice_id`) REFERENCES `invoices` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `returns_ibfk_3` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `returns_ibfk_4` FOREIGN KEY (`supplier_id`) REFERENCES `suppliers` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `roles` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `book_id` int(10) unsigned NOT NULL,
+  `name` varchar(60) NOT NULL,
+  `permissions` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL DEFAULT '{}' CHECK (json_valid(`permissions`)),
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `book_id` (`book_id`),
+  CONSTRAINT `roles_ibfk_1` FOREIGN KEY (`book_id`) REFERENCES `books` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `stock_adjustments` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `product_id` int(10) unsigned NOT NULL,
+  `type` enum('add','remove','correction') NOT NULL DEFAULT 'add',
+  `qty` decimal(15,3) NOT NULL DEFAULT 0.000,
+  `note` text DEFAULT NULL,
+  `created_by` int(10) unsigned DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `idx_product` (`product_id`),
+  CONSTRAINT `stock_adjustments_ibfk_1` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `suppliers` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `book_id` int(10) unsigned NOT NULL,
+  `name` varchar(120) NOT NULL,
+  `company` varchar(180) DEFAULT NULL,
+  `phone` varchar(30) DEFAULT NULL,
+  `email` varchar(180) DEFAULT NULL,
+  `address` text DEFAULT NULL,
+  `notes` text DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `deleted_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_book` (`book_id`),
+  CONSTRAINT `suppliers_ibfk_1` FOREIGN KEY (`book_id`) REFERENCES `books` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `sync_conflicts` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `conn_id` int(10) unsigned NOT NULL,
+  `kind` varchar(30) NOT NULL,
+  `entity` varchar(30) NOT NULL,
+  `entity_uuid` char(36) DEFAULT NULL,
+  `local_id` int(10) unsigned DEFAULT NULL,
+  `event_id` char(36) DEFAULT NULL,
+  `local_data` mediumtext DEFAULT NULL,
+  `remote_data` mediumtext DEFAULT NULL,
+  `note` varchar(500) DEFAULT NULL,
+  `status` enum('open','resolved') NOT NULL DEFAULT 'open',
+  `resolution` varchar(40) DEFAULT NULL,
+  `resolved_by` varchar(120) DEFAULT NULL,
+  `resolved_at` datetime DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `idx_status` (`conn_id`,`status`),
+  CONSTRAINT `sync_conflicts_ibfk_1` FOREIGN KEY (`conn_id`) REFERENCES `integration_connections` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `sync_import_batches` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `conn_id` int(10) unsigned NOT NULL,
+  `direction` enum('book_to_store','store_to_book') NOT NULL,
+  `entities` varchar(60) NOT NULL,
+  `date_from` date DEFAULT NULL,
+  `date_to` date DEFAULT NULL,
+  `status` enum('dry_run','running','paused','done','failed','rolled_back') NOT NULL DEFAULT 'dry_run',
+  `plan` mediumtext DEFAULT NULL,
+  `progress` mediumtext DEFAULT NULL,
+  `cursor_json` mediumtext DEFAULT NULL,
+  `created_by` varchar(120) DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `started_at` datetime DEFAULT NULL,
+  `finished_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_conn` (`conn_id`,`status`),
+  CONSTRAINT `sync_import_batches_ibfk_1` FOREIGN KEY (`conn_id`) REFERENCES `integration_connections` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `sync_inbox` (
+  `event_id` char(36) NOT NULL,
+  `conn_id` int(10) unsigned NOT NULL,
+  `entity` varchar(30) NOT NULL,
+  `entity_uuid` char(36) NOT NULL,
+  `op` varchar(12) NOT NULL,
+  `result` varchar(20) NOT NULL,
+  `detail` varchar(255) DEFAULT NULL,
+  `received_at` datetime NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`event_id`),
+  KEY `idx_received` (`received_at`),
+  KEY `conn_id` (`conn_id`),
+  CONSTRAINT `sync_inbox_ibfk_1` FOREIGN KEY (`conn_id`) REFERENCES `integration_connections` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `sync_links` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `conn_id` int(10) unsigned NOT NULL,
+  `entity` varchar(30) NOT NULL,
+  `entity_uuid` char(36) NOT NULL,
+  `local_id` int(10) unsigned DEFAULT NULL,
+  `local_version` int(10) unsigned NOT NULL DEFAULT 0,
+  `remote_version` int(10) unsigned NOT NULL DEFAULT 0,
+  `last_payload` mediumtext DEFAULT NULL,
+  `field_ts` mediumtext DEFAULT NULL,
+  `content_hash` char(40) DEFAULT NULL,
+  `archived` tinyint(1) NOT NULL DEFAULT 0,
+  `last_synced_at` datetime DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_uuid` (`conn_id`,`entity`,`entity_uuid`),
+  UNIQUE KEY `uq_local` (`conn_id`,`entity`,`local_id`),
+  CONSTRAINT `sync_links_ibfk_1` FOREIGN KEY (`conn_id`) REFERENCES `integration_connections` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `sync_log` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `conn_id` int(10) unsigned DEFAULT NULL,
+  `direction` enum('in','out','system') NOT NULL DEFAULT 'system',
+  `kind` varchar(30) NOT NULL,
+  `event_id` char(36) DEFAULT NULL,
+  `http_status` smallint(6) DEFAULT NULL,
+  `ok` tinyint(1) NOT NULL DEFAULT 1,
+  `summary` varchar(500) NOT NULL,
+  `detail` text DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `idx_conn_date` (`conn_id`,`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `sync_nonces` (
+  `nonce` char(64) NOT NULL,
+  `expires_at` datetime NOT NULL,
+  PRIMARY KEY (`nonce`),
+  KEY `idx_exp` (`expires_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `sync_outbox` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `conn_id` int(10) unsigned NOT NULL,
+  `event_id` char(36) NOT NULL,
+  `entity` varchar(30) NOT NULL,
+  `entity_uuid` char(36) NOT NULL,
+  `op` varchar(12) NOT NULL,
+  `version` int(10) unsigned NOT NULL,
+  `envelope` mediumtext NOT NULL,
+  `status` enum('pending','sending','done','dead','conflict') NOT NULL DEFAULT 'pending',
+  `attempts` int(10) unsigned NOT NULL DEFAULT 0,
+  `next_attempt_at` datetime NOT NULL,
+  `last_error` varchar(500) DEFAULT NULL,
+  `sent_at` datetime DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_event` (`event_id`),
+  KEY `idx_due` (`status`,`next_attempt_at`),
+  KEY `idx_entity` (`conn_id`,`entity`,`entity_uuid`,`id`),
+  CONSTRAINT `sync_outbox_ibfk_1` FOREIGN KEY (`conn_id`) REFERENCES `integration_connections` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `sync_rate` (
+  `bucket` varchar(90) NOT NULL,
+  `win` int(10) unsigned NOT NULL,
+  `cnt` int(10) unsigned NOT NULL DEFAULT 0,
+  PRIMARY KEY (`bucket`,`win`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `two_factor_auth` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` int(10) unsigned NOT NULL,
+  `secret` varchar(64) DEFAULT NULL COMMENT 'TOTP secret for app-based 2FA',
+  `backup_codes` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT 'Array of hashed backup codes' CHECK (json_valid(`backup_codes`)),
+  `otp_code` varchar(10) DEFAULT NULL COMMENT 'Last sent OTP (email/WhatsApp)',
+  `otp_expires` datetime DEFAULT NULL,
+  `verified` tinyint(1) NOT NULL DEFAULT 0 COMMENT '1 = 2FA fully set up',
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `updated_at` datetime DEFAULT NULL ON UPDATE current_timestamp(),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_user_id` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `user_2fa_methods` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` int(10) unsigned NOT NULL,
+  `method` enum('email','whatsapp','app') NOT NULL,
+  `secret` varchar(64) DEFAULT NULL COMMENT 'TOTP secret for app method',
+  `otp_code` varchar(10) DEFAULT NULL COMMENT 'Last sent OTP for email/whatsapp',
+  `otp_expires` datetime DEFAULT NULL,
+  `is_enabled` tinyint(1) NOT NULL DEFAULT 1,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `updated_at` datetime DEFAULT NULL ON UPDATE current_timestamp(),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_user_method` (`user_id`,`method`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `user_education` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` int(10) unsigned NOT NULL,
+  `institute` varchar(300) NOT NULL,
+  `subject` varchar(200) DEFAULT NULL,
+  `from_year` year(4) DEFAULT NULL,
+  `to_year` year(4) DEFAULT NULL,
+  `is_current` tinyint(1) NOT NULL DEFAULT 0,
+  `sort_order` tinyint(3) unsigned NOT NULL DEFAULT 0,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `idx_user_id` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `user_experience` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` int(10) unsigned NOT NULL,
+  `organisation` varchar(255) NOT NULL,
+  `job_title` varchar(255) NOT NULL,
+  `employment_type` enum('full_time','part_time','contract','freelance','internship','volunteer') NOT NULL DEFAULT 'full_time',
+  `location` varchar(255) DEFAULT NULL,
+  `start_date` date DEFAULT NULL,
+  `end_date` date DEFAULT NULL,
+  `is_current` tinyint(1) NOT NULL DEFAULT 0,
+  `description` text DEFAULT NULL,
+  `sort_order` smallint(6) NOT NULL DEFAULT 0,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `idx_user_id` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `user_grades` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` int(10) unsigned NOT NULL,
+  `level` varchar(100) NOT NULL COMMENT 'e.g. SSC, HSC, Bachelor',
+  `result` varchar(100) DEFAULT NULL COMMENT 'e.g. GPA 5.00, First Class',
+  `board` varchar(200) DEFAULT NULL,
+  `year` year(4) DEFAULT NULL,
+  `sort_order` tinyint(3) unsigned NOT NULL DEFAULT 0,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `idx_user_id` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `user_handles` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` int(10) unsigned NOT NULL,
+  `handle` varchar(50) NOT NULL COMMENT 'Unique @handle, lowercase, alphanumeric+underscore',
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `updated_at` datetime DEFAULT NULL ON UPDATE current_timestamp(),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_handle` (`handle`),
+  UNIQUE KEY `uq_user` (`user_id`),
+  KEY `idx_user_id` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `user_profile_visibility` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` int(10) unsigned NOT NULL,
+  `field_name` varchar(100) NOT NULL COMMENT 'Column/section name to show/hide',
+  `is_visible` tinyint(1) NOT NULL DEFAULT 0,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_user_field` (`user_id`,`field_name`),
+  KEY `idx_user_id` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `user_profiles` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` int(10) unsigned NOT NULL,
+  `bio` text DEFAULT NULL,
+  `address` varchar(500) DEFAULT NULL,
+  `city` varchar(100) DEFAULT NULL,
+  `country` varchar(100) DEFAULT NULL,
+  `profile_banner` varchar(255) DEFAULT NULL,
+  `profile_theme_color` varchar(10) DEFAULT '#1a6b4a',
+  `relationship_status` enum('single','in_relationship','married','widowed','prefer_not') DEFAULT NULL,
+  `expertise` text DEFAULT NULL COMMENT 'Comma separated or JSON',
+  `languages` varchar(500) DEFAULT NULL,
+  `hobbies` varchar(500) DEFAULT NULL,
+  `experience_years` tinyint(3) unsigned DEFAULT NULL,
+  `designation` varchar(200) DEFAULT NULL COMMENT 'Auto-filled from selected book',
+  `selected_book_id` int(10) unsigned DEFAULT NULL COMMENT 'Primary business to show on profile',
+  `working_since` date DEFAULT NULL COMMENT 'When joined selected business',
+  `website` varchar(255) DEFAULT NULL,
+  `profile_cv_headline` varchar(300) DEFAULT NULL,
+  `public_email` varchar(255) DEFAULT NULL,
+  `public_phone` varchar(50) DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `updated_at` datetime DEFAULT NULL ON UPDATE current_timestamp(),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_user_id` (`user_id`),
+  KEY `idx_user_id` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `user_sessions` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` int(10) unsigned NOT NULL,
+  `session_id` varchar(128) NOT NULL,
+  `ip_address` varchar(45) DEFAULT NULL,
+  `user_agent` varchar(255) DEFAULT NULL,
+  `last_active_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_session_id` (`session_id`),
+  KEY `idx_user_id` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `user_social_links` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` int(10) unsigned NOT NULL,
+  `platform` varchar(50) NOT NULL COMMENT 'e.g. linkedin, github, facebook, twitter',
+  `url` varchar(500) NOT NULL,
+  `sort_order` tinyint(3) unsigned NOT NULL DEFAULT 0,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `idx_user_id` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `users` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(120) NOT NULL,
+  `email` varchar(180) NOT NULL,
+  `password_hash` varchar(255) NOT NULL,
+  `avatar` varchar(255) DEFAULT NULL,
+  `blood_group` varchar(10) DEFAULT NULL,
+  `gender` enum('male','female','other','prefer_not') DEFAULT NULL,
+  `date_of_birth` date DEFAULT NULL,
+  `phone` varchar(20) DEFAULT NULL,
+  `phone_country_code` varchar(10) DEFAULT '+880',
+  `whatsapp_number` varchar(30) DEFAULT NULL,
+  `whatsapp_country_code` varchar(10) DEFAULT '+880',
+  `email_verified` tinyint(1) NOT NULL DEFAULT 0,
+  `whatsapp_verified` tinyint(1) NOT NULL DEFAULT 0,
+  `two_fa_enabled` tinyint(1) NOT NULL DEFAULT 0,
+  `two_fa_method` enum('email','whatsapp','app') DEFAULT NULL,
+  `two_fa_secret` varchar(64) DEFAULT NULL,
+  `status` enum('pending','active','suspended') NOT NULL DEFAULT 'pending',
+  `theme` varchar(10) NOT NULL DEFAULT 'light',
+  `language` varchar(5) NOT NULL DEFAULT 'en',
+  `date_format` varchar(10) NOT NULL DEFAULT 'd M Y',
+  `timezone` varchar(50) NOT NULL DEFAULT 'Asia/Dhaka',
+  `default_currency` varchar(5) NOT NULL DEFAULT 'BDT',
+  `email_notifications` tinyint(1) NOT NULL DEFAULT 1,
+  `notification_prefs` varchar(500) DEFAULT NULL,
+  `verification_token` varchar(128) DEFAULT NULL,
+  `email_verified_at` datetime DEFAULT NULL,
+  `last_login_at` datetime DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `updated_at` datetime DEFAULT NULL ON UPDATE current_timestamp(),
+  `deleted_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `email` (`email`),
+  KEY `idx_email` (`email`),
+  KEY `idx_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `whatsapp_otps` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` int(10) unsigned NOT NULL,
+  `phone` varchar(30) NOT NULL,
+  `otp` varchar(10) NOT NULL,
+  `purpose` enum('verify','2fa') NOT NULL DEFAULT 'verify',
+  `expires_at` datetime NOT NULL,
+  `used_at` datetime DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `idx_user_id` (`user_id`),
+  KEY `idx_phone` (`phone`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+SET foreign_key_checks = 1;
+
+-- ── Seed: default admin account (change the password after first login) ─────────
 INSERT IGNORE INTO `users`
     (`name`, `email`, `password_hash`, `status`, `email_verified_at`)
 VALUES (
@@ -388,457 +1217,3 @@ VALUES (
     'active',
     NOW()
 );
-
--- =============================================================================
--- EXTENDED TABLES (added as part of the migration fix)
--- =============================================================================
-
-CREATE TABLE IF NOT EXISTS `book_currencies` (
-    `id`         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    `book_id`    INT UNSIGNED NOT NULL,
-    `code`       VARCHAR(10)  NOT NULL DEFAULT 'BDT',
-    `symbol`     VARCHAR(5)   NOT NULL DEFAULT '৳',
-    `is_default` TINYINT(1)   NOT NULL DEFAULT 1,
-    `sort_order` INT UNSIGNED NOT NULL DEFAULT 0,
-    FOREIGN KEY (`book_id`) REFERENCES `books`(`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS `invoice_method_options` (
-    `id`         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    `book_id`    INT UNSIGNED NOT NULL,
-    `type`       ENUM('delivery','payment') NOT NULL,
-    `label`      VARCHAR(120) NOT NULL,
-    `sort_order` INT UNSIGNED NOT NULL DEFAULT 0,
-    FOREIGN KEY (`book_id`) REFERENCES `books`(`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS `report_entries` (
-    `id`           BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    `book_id`      INT UNSIGNED NOT NULL,
-    `type`         ENUM('in','out') NOT NULL,
-    `category`     VARCHAR(60)  NOT NULL,
-    `amount`       DECIMAL(15,2) NOT NULL DEFAULT 0.00,
-    `description`  VARCHAR(255) NULL,
-    `source_table` VARCHAR(60)  NULL,
-    `source_id`    INT UNSIGNED NULL,
-    `date`         DATE NOT NULL,
-    `created_at`   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (`book_id`) REFERENCES `books`(`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS `payments` (
-    `id`         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    `invoice_id` INT UNSIGNED NOT NULL,
-    `amount`     DECIMAL(15,2) NOT NULL,
-    `method`     VARCHAR(60)   NOT NULL DEFAULT 'cash',
-    `date`       DATE NOT NULL,
-    `note`       TEXT NULL,
-    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (`invoice_id`) REFERENCES `invoices`(`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS `invoice_attachments` (
-    `id`         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    `invoice_id` INT UNSIGNED NOT NULL,
-    `filename`   VARCHAR(255) NOT NULL,
-    `path`       VARCHAR(500) NOT NULL,
-    `size`       INT UNSIGNED NOT NULL DEFAULT 0,
-    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (`invoice_id`) REFERENCES `invoices`(`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS `product_batches` (
-    `id`            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    `product_id`    INT UNSIGNED NOT NULL,
-    `book_id`       INT UNSIGNED NOT NULL,
-    `barcode`       VARCHAR(60) NULL,
-    `buy_price`     DECIMAL(15,2) NOT NULL DEFAULT 0.00,
-    `sell_price`    DECIMAL(15,2) NOT NULL DEFAULT 0.00,
-    `initial_qty`   DECIMAL(15,3) NOT NULL DEFAULT 0.000,
-    `remaining_qty` DECIMAL(15,3) NOT NULL DEFAULT 0.000,
-    `created_at`    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS `funds` (
-    `id`         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    `book_id`    INT UNSIGNED NOT NULL,
-    `type`       ENUM('in','out') NOT NULL DEFAULT 'in',
-    `title`      VARCHAR(255) NOT NULL,
-    `amount`     DECIMAL(15,2) NOT NULL DEFAULT 0.00,
-    `fund_date`  DATE NOT NULL,
-    `note`       TEXT NULL,
-    `created_by` INT UNSIGNED NULL,
-    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `updated_at` DATETIME NULL ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (`book_id`) REFERENCES `books`(`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS `expense_categories` (
-    `id`        INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    `book_id`   INT UNSIGNED NOT NULL,
-    `name`      VARCHAR(120) NOT NULL,
-    `icon`      VARCHAR(60)  NOT NULL DEFAULT 'fa-tag',
-    `is_active` TINYINT(1)   NOT NULL DEFAULT 1,
-    FOREIGN KEY (`book_id`) REFERENCES `books`(`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS `expenses` (
-    `id`           INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    `book_id`      INT UNSIGNED NOT NULL,
-    `category_id`  INT UNSIGNED NULL DEFAULT NULL,
-    `title`        VARCHAR(255) NOT NULL,
-    `amount`       DECIMAL(15,2) NOT NULL DEFAULT 0.00,
-    `expense_date` DATE NOT NULL,
-    `paid_to`      VARCHAR(120) NULL,
-    `note`         TEXT NULL,
-    `attachment`   VARCHAR(255) NULL,
-    `created_by`   INT UNSIGNED NULL,
-    `created_at`   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `updated_at`   DATETIME NULL ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (`book_id`)     REFERENCES `books`(`id`)             ON DELETE CASCADE,
-    FOREIGN KEY (`category_id`) REFERENCES `expense_categories`(`id`) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS `dues` (
-    `id`          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    `book_id`     INT UNSIGNED NOT NULL,
-    `customer_id` INT UNSIGNED NULL DEFAULT NULL,
-    `invoice_id`  INT UNSIGNED NULL DEFAULT NULL,
-    `title`       VARCHAR(255) NOT NULL,
-    `amount`      DECIMAL(15,2) NOT NULL DEFAULT 0.00,
-    `paid_amount` DECIMAL(15,2) NOT NULL DEFAULT 0.00,
-    `due_date`    DATE NULL,
-    `note`        TEXT NULL,
-    `status`      ENUM('unpaid','partial','paid','cancelled') NOT NULL DEFAULT 'unpaid',
-    `created_by`  INT UNSIGNED NULL,
-    `created_at`  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `updated_at`  DATETIME NULL ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (`book_id`)     REFERENCES `books`(`id`)     ON DELETE CASCADE,
-    FOREIGN KEY (`customer_id`) REFERENCES `customers`(`id`) ON DELETE SET NULL,
-    FOREIGN KEY (`invoice_id`)  REFERENCES `invoices`(`id`)  ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS `due_payments` (
-    `id`             INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    `due_id`         INT UNSIGNED NOT NULL,
-    `book_id`        INT UNSIGNED NOT NULL,
-    `amount`         DECIMAL(15,2) NOT NULL,
-    `payment_method` VARCHAR(60) NOT NULL DEFAULT 'cash',
-    `note`           TEXT NULL,
-    `paid_by`        INT UNSIGNED NULL,
-    `paid_at`        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (`due_id`) REFERENCES `dues`(`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS `debts` (
-    `id`          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    `book_id`     INT UNSIGNED NOT NULL,
-    `supplier_id` INT UNSIGNED NULL DEFAULT NULL,
-    `invoice_id`  INT UNSIGNED NULL DEFAULT NULL,
-    `title`       VARCHAR(255) NOT NULL,
-    `party`       VARCHAR(120) NULL,
-    `amount`      DECIMAL(15,2) NOT NULL DEFAULT 0.00,
-    `paid_amount` DECIMAL(15,2) NOT NULL DEFAULT 0.00,
-    `due_date`    DATE NULL,
-    `note`        TEXT NULL,
-    `status`      ENUM('unpaid','partial','paid','cancelled') NOT NULL DEFAULT 'unpaid',
-    `created_by`  INT UNSIGNED NULL,
-    `created_at`  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `updated_at`  DATETIME NULL ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (`book_id`)     REFERENCES `books`(`id`)     ON DELETE CASCADE,
-    FOREIGN KEY (`supplier_id`) REFERENCES `suppliers`(`id`) ON DELETE SET NULL,
-    FOREIGN KEY (`invoice_id`)  REFERENCES `invoices`(`id`)  ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS `debt_payments` (
-    `id`             INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    `debt_id`        INT UNSIGNED NOT NULL,
-    `book_id`        INT UNSIGNED NOT NULL,
-    `amount`         DECIMAL(15,2) NOT NULL,
-    `payment_method` VARCHAR(60) NOT NULL DEFAULT 'cash',
-    `note`           TEXT NULL,
-    `paid_by`        INT UNSIGNED NULL,
-    `paid_at`        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (`debt_id`) REFERENCES `debts`(`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS `coupons` (
-    `id`             INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    `book_id`        INT UNSIGNED NOT NULL,
-    `name`           VARCHAR(120) NOT NULL,
-    `code`           VARCHAR(30)  NOT NULL,
-    `discount_type`  ENUM('fixed','percent') NOT NULL DEFAULT 'fixed',
-    `discount_value` DECIMAL(10,2) NOT NULL DEFAULT 0.00,
-    `note`           TEXT NULL,
-    `is_active`      TINYINT(1)   NOT NULL DEFAULT 1,
-    `expires_at`     DATETIME NULL,
-    `created_by`     INT UNSIGNED NULL,
-    `created_at`     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `updated_at`     DATETIME NULL ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (`book_id`) REFERENCES `books`(`id`) ON DELETE CASCADE,
-    UNIQUE KEY `uq_book_code` (`book_id`, `code`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- Extended columns for invoices
-ALTER TABLE `invoices`
-    ADD COLUMN IF NOT EXISTS `points_discount`  DECIMAL(15,2) NOT NULL DEFAULT 0.00 AFTER `discount`,
-    ADD COLUMN IF NOT EXISTS `delivery_charge`  DECIMAL(15,2) NOT NULL DEFAULT 0.00 AFTER `points_discount`,
-    ADD COLUMN IF NOT EXISTS `handling_charge`  DECIMAL(15,2) NOT NULL DEFAULT 0.00 AFTER `delivery_charge`,
-    ADD COLUMN IF NOT EXISTS `delivery_type`    VARCHAR(30)   NULL DEFAULT 'own'    AFTER `handling_charge`,
-    ADD COLUMN IF NOT EXISTS `rounding`         DECIMAL(10,4) NOT NULL DEFAULT 0    AFTER `delivery_type`,
-    ADD COLUMN IF NOT EXISTS `note_customer`    TEXT NULL                           AFTER `notes`,
-    ADD COLUMN IF NOT EXISTS `note_seller`      TEXT NULL                           AFTER `note_customer`,
-    ADD COLUMN IF NOT EXISTS `delivery_method`  VARCHAR(120) NULL                   AFTER `note_seller`,
-    ADD COLUMN IF NOT EXISTS `payment_method`   VARCHAR(120) NULL                   AFTER `delivery_method`,
-    ADD COLUMN IF NOT EXISTS `theme_color`      VARCHAR(7)   NULL DEFAULT '#1a6b4a' AFTER `payment_method`,
-    ADD COLUMN IF NOT EXISTS `currency_symbol`  VARCHAR(5)   NOT NULL DEFAULT '৳'   AFTER `theme_color`,
-    ADD COLUMN IF NOT EXISTS `currency_code`    VARCHAR(10)  NOT NULL DEFAULT 'BDT' AFTER `currency_symbol`,
-    ADD COLUMN IF NOT EXISTS `public_token`     VARCHAR(40)  NULL                   AFTER `currency_code`,
-    ADD COLUMN IF NOT EXISTS `coupon_code`      VARCHAR(30)  NULL                   AFTER `public_token`,
-    ADD COLUMN IF NOT EXISTS `coupon_discount`  DECIMAL(15,2) NOT NULL DEFAULT 0.00 AFTER `coupon_code`;
-
-ALTER TABLE `coupons`
-    ADD COLUMN IF NOT EXISTS `expires_at`  DATETIME NULL AFTER `is_active`,
-    ADD COLUMN IF NOT EXISTS `updated_at`  DATETIME NULL AFTER `expires_at`;
-
-ALTER TABLE `invoice_items`
-    ADD COLUMN IF NOT EXISTS `variant` VARCHAR(120) NULL AFTER `description`;
-
-ALTER TABLE `book_business_details`
-    ADD COLUMN IF NOT EXISTS `inventory_method`         ENUM('FIFO','LIFO') NOT NULL DEFAULT 'FIFO' AFTER `invoice_counter`,
-    ADD COLUMN IF NOT EXISTS `invoice_prefix_purchase`  VARCHAR(20) NOT NULL DEFAULT 'PUR'          AFTER `inventory_method`,
-    ADD COLUMN IF NOT EXISTS `invoice_counter_purchase` INT UNSIGNED NOT NULL DEFAULT 1             AFTER `invoice_prefix_purchase`;
-
-ALTER TABLE `products`
-    ADD COLUMN IF NOT EXISTS `product_code` VARCHAR(60) NULL AFTER `sku`;
-
--- ────────────────────────────────────────
--- Additional columns missing from originals
--- ────────────────────────────────────────
-ALTER TABLE `books`
-    ADD COLUMN IF NOT EXISTS `theme_color` VARCHAR(7)   NULL DEFAULT '#1a6b4a' AFTER `color`,
-    ADD COLUMN IF NOT EXISTS `email`       VARCHAR(180) NULL                   AFTER `description`,
-    ADD COLUMN IF NOT EXISTS `phone`       VARCHAR(30)  NULL                   AFTER `email`;
-
-ALTER TABLE `book_business_details`
-    ADD COLUMN IF NOT EXISTS `invoice_font`             VARCHAR(60)  NOT NULL DEFAULT 'DejaVu Sans' AFTER `footer_note`,
-    ADD COLUMN IF NOT EXISTS `inventory_method`         ENUM('FIFO','LIFO') NOT NULL DEFAULT 'FIFO' AFTER `invoice_counter`,
-    ADD COLUMN IF NOT EXISTS `invoice_prefix_purchase`  VARCHAR(20)  NOT NULL DEFAULT 'PUR'         AFTER `inventory_method`,
-    ADD COLUMN IF NOT EXISTS `invoice_counter_purchase` INT UNSIGNED NOT NULL DEFAULT 1             AFTER `invoice_prefix_purchase`;
-
-ALTER TABLE `book_currencies`
-    ADD COLUMN IF NOT EXISTS `name` VARCHAR(80) NULL AFTER `symbol`;
-
--- returns / return_items
-CREATE TABLE IF NOT EXISTS `returns` (
-    `id`              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    `book_id`         INT UNSIGNED NOT NULL,
-    `invoice_id`      INT UNSIGNED NULL DEFAULT NULL,
-    `type`            ENUM('sales_return','purchase_return') NOT NULL,
-    `return_no`       VARCHAR(40)  NOT NULL,
-    `date`            DATE         NOT NULL,
-    `customer_id`     INT UNSIGNED NULL DEFAULT NULL,
-    `supplier_id`     INT UNSIGNED NULL DEFAULT NULL,
-    `subtotal`        DECIMAL(15,2) NOT NULL DEFAULT 0.00,
-    `discount`        DECIMAL(15,2) NOT NULL DEFAULT 0.00,
-    `delivery_charge` DECIMAL(15,2) NOT NULL DEFAULT 0.00,
-    `total_refund`    DECIMAL(15,2) NOT NULL DEFAULT 0.00,
-    `remarks`         TEXT NULL,
-    `status`          VARCHAR(20) NOT NULL DEFAULT 'completed',
-    `created_by`      INT UNSIGNED NULL,
-    `created_at`      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `deleted_at`      DATETIME NULL DEFAULT NULL,
-    FOREIGN KEY (`book_id`)     REFERENCES `books`(`id`)     ON DELETE CASCADE,
-    FOREIGN KEY (`invoice_id`)  REFERENCES `invoices`(`id`)  ON DELETE SET NULL,
-    FOREIGN KEY (`customer_id`) REFERENCES `customers`(`id`) ON DELETE SET NULL,
-    FOREIGN KEY (`supplier_id`) REFERENCES `suppliers`(`id`) ON DELETE SET NULL,
-    INDEX `idx_book` (`book_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS `return_items` (
-    `id`          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    `return_id`   INT UNSIGNED NOT NULL,
-    `product_id`  INT UNSIGNED NULL DEFAULT NULL,
-    `description` VARCHAR(255) NOT NULL,
-    `qty`         DECIMAL(15,3) NOT NULL DEFAULT 0.000,
-    `unit_price`  DECIMAL(15,2) NOT NULL DEFAULT 0.00,
-    `line_total`  DECIMAL(15,2) NOT NULL DEFAULT 0.00,
-    FOREIGN KEY (`return_id`)  REFERENCES `returns`(`id`)  ON DELETE CASCADE,
-    FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- =============================================================================
--- MISSING TABLES & COLUMNS — Added to fix runtime errors
--- =============================================================================
-
--- ── privilege_discount column missing from invoices ──────────────────────────
-ALTER TABLE `invoices`
-    ADD COLUMN IF NOT EXISTS `privilege_discount` DECIMAL(15,2) NOT NULL DEFAULT 0.00 AFTER `coupon_discount`;
-
--- ── Missing columns on employees ─────────────────────────────────────────────
-ALTER TABLE `employees`
-    ADD COLUMN IF NOT EXISTS `designation_id`   INT UNSIGNED NULL DEFAULT NULL AFTER `role_id`,
-    ADD COLUMN IF NOT EXISTS `designation_name` VARCHAR(120) NULL AFTER `designation_id`,
-    ADD COLUMN IF NOT EXISTS `invitation_id`    INT UNSIGNED NULL DEFAULT NULL AFTER `designation_name`,
-    ADD COLUMN IF NOT EXISTS `address`          TEXT NULL AFTER `email`,
-    ADD COLUMN IF NOT EXISTS `notes`            TEXT NULL AFTER `bank_info`;
-
--- ── Missing privilege_id on customers ────────────────────────────────────────
-ALTER TABLE `customers`
-    ADD COLUMN IF NOT EXISTS `privilege_id` INT UNSIGNED NULL DEFAULT NULL AFTER `points`;
-
--- ── Customer privileges tiers ─────────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS `customer_privileges` (
-    `id`             INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    `book_id`        INT UNSIGNED NOT NULL,
-    `name`           VARCHAR(80)  NOT NULL,
-    `discount_type`  ENUM('fixed','percent') NOT NULL DEFAULT 'percent',
-    `discount_value` DECIMAL(10,2) NOT NULL DEFAULT 0.00,
-    `description`    TEXT NULL,
-    `created_at`     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (`book_id`) REFERENCES `books`(`id`) ON DELETE CASCADE,
-    INDEX `idx_book` (`book_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ── Customer → privilege junction (multi-privilege support) ───────────────────
-CREATE TABLE IF NOT EXISTS `customer_privilege_assignments` (
-    `customer_id`  INT UNSIGNED NOT NULL,
-    `privilege_id` INT UNSIGNED NOT NULL,
-    PRIMARY KEY (`customer_id`, `privilege_id`),
-    FOREIGN KEY (`customer_id`)  REFERENCES `customers`(`id`)          ON DELETE CASCADE,
-    FOREIGN KEY (`privilege_id`) REFERENCES `customer_privileges`(`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ── Employee designations / roles ─────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS `designations` (
-    `id`          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    `book_id`     INT UNSIGNED NOT NULL,
-    `name`        VARCHAR(80)  NOT NULL,
-    `permissions` JSON         NULL,
-    `created_at`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (`book_id`) REFERENCES `books`(`id`) ON DELETE CASCADE,
-    INDEX `idx_book` (`book_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ── Book members (employees with login access) ────────────────────────────────
-CREATE TABLE IF NOT EXISTS `book_members` (
-    `id`               INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    `book_id`          INT UNSIGNED NOT NULL,
-    `user_id`          INT UNSIGNED NOT NULL,
-    `designation_id`   INT UNSIGNED NULL DEFAULT NULL,
-    `designation_name` VARCHAR(120) NULL,
-    `permissions`      JSON         NULL,
-    `status`           ENUM('active','inactive','pending') NOT NULL DEFAULT 'active',
-    `created_at`       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE KEY `uq_book_user` (`book_id`, `user_id`),
-    FOREIGN KEY (`book_id`) REFERENCES `books`(`id`) ON DELETE CASCADE,
-    FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ── Employee invitations ──────────────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS `employee_invitations` (
-    `id`               INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    `book_id`          INT UNSIGNED NOT NULL,
-    `invited_by`       INT UNSIGNED NULL,
-    `email`            VARCHAR(180) NOT NULL,
-    `user_id`          INT UNSIGNED NULL DEFAULT NULL,
-    `designation_id`   INT UNSIGNED NULL DEFAULT NULL,
-    `designation_name` VARCHAR(120) NULL,
-    `permissions`      JSON         NULL,
-    `token`            VARCHAR(80)  NOT NULL,
-    `status`           ENUM('pending','accepted','expired','cancelled') NOT NULL DEFAULT 'pending',
-    `expires_at`       DATETIME NULL,
-    `created_at`       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE KEY `uq_token` (`token`),
-    FOREIGN KEY (`book_id`) REFERENCES `books`(`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ── Employee salary payments ──────────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS `employee_salary_payments` (
-    `id`             INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    `book_id`        INT UNSIGNED NOT NULL,
-    `employee_id`    INT UNSIGNED NOT NULL,
-    `expense_id`     INT UNSIGNED NULL DEFAULT NULL,
-    `amount`         DECIMAL(15,2) NOT NULL DEFAULT 0.00,
-    `period_label`   VARCHAR(60)  NULL,
-    `period_from`    DATE         NULL,
-    `period_to`      DATE         NULL,
-    `payment_method` VARCHAR(80)  NULL,
-    `note`           TEXT         NULL,
-    `created_by`     INT UNSIGNED NULL,
-    `created_at`     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (`book_id`)     REFERENCES `books`(`id`)     ON DELETE CASCADE,
-    FOREIGN KEY (`employee_id`) REFERENCES `employees`(`id`) ON DELETE CASCADE,
-    INDEX `idx_book`     (`book_id`),
-    INDEX `idx_employee` (`employee_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ── Notifications ─────────────────────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS `notifications` (
-    `id`         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    `user_id`    INT UNSIGNED NOT NULL,
-    `book_id`    INT UNSIGNED NULL DEFAULT NULL,
-    `type`       VARCHAR(40)  NOT NULL DEFAULT 'info',
-    `title`      VARCHAR(255) NOT NULL,
-    `body`       TEXT         NULL,
-    `action_url` VARCHAR(400) NULL,
-    `data`       JSON         NULL,
-    `read_at`    DATETIME     NULL DEFAULT NULL,
-    `created_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE,
-    INDEX `idx_user`    (`user_id`),
-    INDEX `idx_book`    (`book_id`),
-    INDEX `idx_read_at` (`read_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ── Product variants ──────────────────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS `product_variants` (
-    `id`         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    `product_id` INT UNSIGNED NOT NULL,
-    `label`      VARCHAR(60)  NOT NULL,
-    `value`      VARCHAR(120) NOT NULL,
-    `sku`        VARCHAR(60)  NULL,
-    `price_adj`  DECIMAL(15,2) NOT NULL DEFAULT 0.00,
-    `stock_qty`  DECIMAL(15,3) NOT NULL DEFAULT 0.000,
-    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE CASCADE,
-    INDEX `idx_product` (`product_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ── Stock adjustments ─────────────────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS `stock_adjustments` (
-    `id`         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    `product_id` INT UNSIGNED NOT NULL,
-    `type`       ENUM('add','remove','correction') NOT NULL DEFAULT 'add',
-    `qty`        DECIMAL(15,3) NOT NULL DEFAULT 0.000,
-    `note`       TEXT NULL,
-    `created_by` INT UNSIGNED NULL,
-    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE CASCADE,
-    INDEX `idx_product` (`product_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- =============================================================================
--- ACTIVITY LOG — comprehensive audit trail for every book action
--- =============================================================================
-
-CREATE TABLE IF NOT EXISTS `activity_log` (
-    `id`           BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    `book_id`      INT UNSIGNED NULL,
-    `user_id`      INT UNSIGNED NULL,
-    `action`       VARCHAR(80)  NOT NULL,
-    `subject_type` VARCHAR(60)  NULL,
-    `subject_id`   INT UNSIGNED NULL,
-    `description`  TEXT         NULL,
-    `old_data`     JSON         NULL,
-    `new_data`     JSON         NULL,
-    `ip_address`   VARCHAR(45)  NULL,
-    `user_agent`   VARCHAR(500) NULL,
-    `created_at`   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    INDEX `idx_book`    (`book_id`),
-    INDEX `idx_user`    (`user_id`),
-    INDEX `idx_action`  (`action`),
-    INDEX `idx_date`    (`created_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

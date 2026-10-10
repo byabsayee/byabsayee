@@ -58,7 +58,7 @@ class ExpensesController
 
         $title  = trim($_POST['title']  ?? '');
         $amount = (float)($_POST['amount'] ?? 0);
-        $date   = $_POST['date'] ?? date('Y-m-d');
+        $date   = valid_date($_POST['date'] ?? null, date('Y-m-d'));
         $catId  = !empty($_POST['category_id']) ? (int)$_POST['category_id'] : null;
         $paidTo = trim($_POST['paid_to'] ?? '');
         $note   = trim($_POST['note']   ?? '');
@@ -94,10 +94,11 @@ class ExpensesController
         $book    = $this->getBookOrFail($params['id']);
         if (!book_can($book, 'expenses', 'edit')) abort_403();
         $expense = $this->getExpenseOrFail($params['expense_id'], $book['id']);
+        if (!empty($expense['source_table'])) redirect('/books/'.$book['id'].'/expenses', ['error' => 'This expense was created automatically by another record — change it there and it follows.']);
 
         $title  = trim($_POST['title']  ?? '');
         $amount = (float)($_POST['amount'] ?? 0);
-        $date   = $_POST['date'] ?? $expense['expense_date'];
+        $date   = valid_date($_POST['date'] ?? null, $expense['expense_date']);
         $catId  = !empty($_POST['category_id']) ? (int)$_POST['category_id'] : null;
         $paidTo = trim($_POST['paid_to'] ?? '');
         $note   = trim($_POST['note']   ?? '');
@@ -128,6 +129,7 @@ class ExpensesController
         $book    = $this->getBookOrFail($params['id']);
         if (!book_can($book, 'expenses', 'delete')) abort_403();
         $expense = Database::row('SELECT * FROM expenses WHERE id=? AND book_id=?', [$params['expense_id'], $book['id']]);
+        if ($expense && !empty($expense['source_table'])) redirect('/books/'.$book['id'].'/expenses', ['error' => 'This expense was created automatically by another record — delete or change that record instead.']);
 
         ActivityLogger::write($book['id'], auth()['id'], 'expense.deleted', 'Expense', (int)($expense['id'] ?? $params['expense_id']),
             "Expense deleted — " . ($expense['title'] ?? 'unknown') . ' — ' . ($expense['amount'] ?? 0),

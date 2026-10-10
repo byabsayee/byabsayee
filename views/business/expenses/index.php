@@ -141,6 +141,7 @@ ob_start();
                 <?php endif; ?>
             </td>
             <td style="text-align:right;white-space:nowrap">
+                <?php if (empty($exp['source_table'])): ?>
                 <button class="btn btn-sm btn-secondary" title="Edit"
                         onclick="openExpenseEdit(
                             <?= $exp['id'] ?>,
@@ -162,6 +163,15 @@ ob_start();
                         <i class="fa-solid fa-trash" style="color:var(--red)"></i>
                     </button>
                 </form>
+                <?php else:
+                    $srcHref = match ($exp['source_table']) {
+                        'invoices' => '/books/'.$book['id'].'/invoices/'.$exp['source_id'],
+                        'returns'  => '/books/'.$book['id'].'/returns/'.$exp['source_id'],
+                        default    => '/books/'.$book['id'].'/employees',
+                    };
+                    $srcLabel = match ($exp['source_table']) { 'invoices' => 'invoice', 'returns' => 'return', default => 'salary payment' }; ?>
+                <a href="<?= e($srcHref) ?>" class="btn btn-sm btn-secondary" title="Created automatically from a <?= $srcLabel ?> — change it there"><i class="fa-solid fa-link"></i> From <?= $srcLabel ?></a>
+                <?php endif; ?>
             </td>
         </tr>
         <?php endforeach; ?>

@@ -31,7 +31,10 @@ ob_start();
     <div style="display:flex;gap:8px;flex-wrap:wrap">
         <a href="/books/<?= $book['id'] ?>/invoices/create?type=purchase&supplier_id=<?= $supplier['id'] ?>" class="btn btn-primary">+ New Purchase</a>
         <button class="btn btn-secondary" data-modal="editSupplierModal">Edit</button>
-        <form method="POST" action="/books/<?= $book['id'] ?>/suppliers/<?= $supplier['id'] ?>/delete" data-confirm="Delete <?= e($supplier['name']) ?>?">
+        <?php $__open = \App\Services\LedgerService::openBalance('supplier', (int)$supplier['id']); ?>
+        <form method="POST" action="/books/<?= $book['id'] ?>/suppliers/<?= $supplier['id'] ?>/delete"
+              data-confirm="<?= e($__open['count'] > 0 ? $supplier['name'] . ' still has ' . format_money($__open['amount']) . ' open across ' . $__open['count'] . ' record(s). Delete anyway? The records stay in your books.' : 'Delete ' . $supplier['name'] . '?') ?>">
+            <?php if ($__open['count'] > 0): ?><input type="hidden" name="confirm_open" value="1"><?php endif; ?>
             <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
             <button class="btn btn-danger">Delete</button>
         </form>

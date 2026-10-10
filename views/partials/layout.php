@@ -10,7 +10,8 @@ $__theme = $_SESSION['user']['theme'] ?? 'light';
 <html lang="en"<?= $__theme === 'dark' ? ' data-theme="dark"' : '' ?>>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#1a6b4a">
     <title><?= e($pageTitle ?? 'Byabsayee') ?></title>
     <?php if ($__theme === 'system'): ?>
     <script>
@@ -30,10 +31,13 @@ $__theme = $_SESSION['user']['theme'] ?? 'light';
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;600&family=DM+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
     <script src="https://kit.fontawesome.com/86c0c1c09a.js" crossorigin="anonymous"></script>
     <link rel="stylesheet" href="<?= asset('css/app.css') ?>">
+    <link rel="stylesheet" href="<?= asset('css/mobile.css') ?>">
+    <link rel="stylesheet" href="<?= asset('css/settings.css') ?>">
 </head>
 <body>
 
 <?php
+$__initial = mb_strtoupper(mb_substr(trim((string)(auth()['name'] ?? 'U')) ?: 'U', 0, 1));
 $uri           = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/';
 $bookMatch     = [];
 $inBook        = preg_match('#^/books/(\d+)#', $uri, $bookMatch);
@@ -69,7 +73,10 @@ function navActive(string $path): string {
 ?>
 
 <!-- ===================== SIDEBAR ===================== -->
-<aside class="sidebar" id="sidebar">
+<aside class="sidebar" id="sidebar" aria-label="Main menu">
+    <button type="button" class="sidebar-close" onclick="closeDrawer()" aria-label="Close menu">
+        <i class="fa-solid fa-xmark"></i>
+    </button>
     <div class="sidebar-top">
         <a href="https://www.byabsayee.com" class="sidebar-logo">
             <div class="s-logo-icon">
@@ -124,7 +131,7 @@ function navActive(string $path): string {
             (bool)navActive('/books/'.$currentBookId.'/returns'),
         ]);
         ?>
-        <?php if ($sidebarCan('invoices','view') || $sidebarCan('pos','view')): ?>
+        <?php if ($sidebarCan('invoices','view')): ?>
         <div class="nav-dropdown <?= $invSubActive ? 'open' : '' ?>" id="navInvoices">
             <div class="nav-dropdown-trigger nav-item <?= $invSubActive ? 'active' : '' ?>">
                 <span><a href="/books/<?= $currentBookId ?>/invoices" title="Invoices"  class="nav-item <?= $uri === '/books/'.$currentBookId.'/invoices' ? 'active' : '' ?>"><i class="fa-solid fa-file-invoice"></i> Invoices</a></span>
@@ -168,7 +175,7 @@ function navActive(string $path): string {
         <a href="/books/<?= $currentBookId ?>/coupons"      title="Coupons"     class="nav-item <?= navActive('/books/'.$currentBookId.'/coupons') ?>">      <i class="fa-solid fa-ticket"></i> Coupons</a>
         <?php endif; ?>
         <?php if ($sidebarIsOwner): ?>
-        <a href="/books/<?= $currentBookId ?>/deliveries"   title="Deliveries"  class="nav-item <?= navActive('/books/'.$currentBookId.'/deliveries') ?>">   <i class="fa-solid fa-truck-fast"></i> Deliveries</a>
+        <a href="/books/<?= $currentBookId ?>/deliveries"   title="Deliveries"  class="nav-item <?= navActive('/books/'.$currentBookId.'/deliveries') ?>">   <i class="fa-solid fa-truck-fast"></i> Deliveries <span class="nav-soon">Soon</span></a>
         <?php endif; ?>
         <?php if ($sidebarCan('reports','view')): ?>
         <a href="/books/<?= $currentBookId ?>/reports"      title="Reports"     class="nav-item <?= navActive('/books/'.$currentBookId.'/reports') ?>">      <i class="fa-solid fa-chart-line"></i> Reports</a>
@@ -198,20 +205,12 @@ function navActive(string $path): string {
             <i class="fa-solid fa-book"></i> <span class="nav-text">Books</span>
         </a>
 
-        <a href="/chat" class="nav-item <?= activePage('chat') ?>" data-label="Chat" title="Chat">
-            <i class="fa-solid fa-message"></i> <span class="nav-text">Chat</span>
-        </a>
-
         <a href="/wallet" class="nav-item <?= activePage('wallet') ?>" data-label="Wallet" title="Wallet">
-            <i class="fa-solid fa-wallet"></i> <span class="nav-text">Wallet</span>
-        </a>
-
-        <a href="/cloud" class="nav-item <?= activePage('cloud') ?>" data-label="Cloud" title="Cloud">
-            <i class="fa-solid fa-cloud"></i> <span class="nav-text">Cloud</span>
+            <i class="fa-solid fa-wallet"></i> <span class="nav-text">Wallet</span> <span class="nav-soon">Soon</span>
         </a>
 
         <a href="/marketplace" class="nav-item <?= activePage('marketplace') ?>" data-label="Marketplace" title="Marketplace">
-            <i class="fa-solid fa-store"></i> <span class="nav-text">Marketplace</span>
+            <i class="fa-solid fa-store"></i> <span class="nav-text">Marketplace</span> <span class="nav-soon">Soon</span>
         </a>
 
         <?php endif; ?>
@@ -229,9 +228,9 @@ function navActive(string $path): string {
         <div class="sidebar-user">
             <a href="/profile" class="s-avatar" style="text-decoration:none;color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0" title="Profile">
                 <?php if (!empty(auth()['avatar'])): ?>
-                <img src="<?= asset('uploads/'.auth()['avatar']) ?>" style="width:100%;height:100%;border-radius:50%;object-fit:cover" onerror="this.style.display='none';this.parentElement.textContent='<?= mb_strtoupper(mb_substr(auth()['name']??'U',0,1)) ?>'">
+                <img src="<?= asset('uploads/'.auth()['avatar']) ?>" alt="" data-initial="<?= e($__initial) ?>" style="width:100%;height:100%;border-radius:50%;object-fit:cover" onerror="this.parentElement.textContent=this.dataset.initial">
                 <?php else: ?>
-                <?= mb_strtoupper(mb_substr(auth()['name'] ?? 'U', 0, 1)) ?>
+                <?= e($__initial) ?>
                 <?php endif; ?>
             </a>
             <div class="s-user-info">
@@ -248,14 +247,23 @@ function navActive(string $path): string {
 <!-- ===================== MAIN ===================== -->
 <div class="app-main">
     <div class="mobile-topbar">
-        <button class="hamburger" onclick="document.getElementById('sidebar').classList.toggle('open')" aria-label="Menu">
-            <span></span><span></span><span></span>
+        <button type="button" class="topbar-btn" onclick="openDrawer()" aria-label="Open menu" aria-controls="sidebar">
+            <i class="fa-solid fa-bars"></i>
         </button>
         <span class="mobile-title"><?= e($pageTitle ?? 'Byabsayee') ?></span>
-        <button onclick="openNotifPanel(event)" class="btn btn-secondary" style="position:relative;padding:6px 10px;margin-left:auto;margin-right:8px">
+        <button type="button" onclick="openNotifPanel(event)" class="topbar-btn" aria-label="Notifications">
             <i class="fa-solid fa-bell"></i>
             <span class="notif-badge" id="mobileNotifBadge" style="display:none"></span>
         </button>
+        <a href="/profile" class="topbar-btn" aria-label="Profile">
+            <span class="topbar-avatar">
+                <?php if (!empty(auth()['avatar'])): ?>
+                <img src="<?= asset('uploads/'.auth()['avatar']) ?>" alt="" onerror="this.remove()">
+                <?php else: ?>
+                <?= e($__initial) ?>
+                <?php endif; ?>
+            </span>
+        </a>
     </div>
 
     <div class="app-content">
@@ -273,7 +281,62 @@ function navActive(string $path): string {
     </div>
 </div>
 
-<div class="sidebar-overlay" onclick="document.getElementById('sidebar').classList.remove('open')"></div>
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeDrawer()"></div>
+
+<?php
+// ===================== PHONE BOTTOM BAR =====================
+// Up to 5 tabs, always ending with "Menu" (opens the drawer). Tabs follow the same permissions as the sidebar.
+$bbItems = [];   // [href|null, icon, label, active?, soon?]
+if ($sidebarBook) {
+    $bid = $currentBookId;
+    $bbItems[] = ['/books/'.$bid, 'fa-gauge', 'Home', (bool)preg_match('#^/books/'.$bid.'/?$#', $uri), false];
+    if ($sidebarBook['type'] === 'business') {
+        $cands = [
+            ['invoices', "/books/$bid/invoices", 'fa-file-invoice', 'Invoices',
+                 navActive("/books/$bid/invoices") || navActive("/books/$bid/sales") || navActive("/books/$bid/purchases") || navActive("/books/$bid/returns") || navActive("/books/$bid/pos")],
+            ['products', "/books/$bid/products", 'fa-box',          'Products', navActive("/books/$bid/products")],
+            ['reports',  "/books/$bid/reports",  'fa-chart-line',   'Reports',  navActive("/books/$bid/reports")],
+            ['expenses', "/books/$bid/expenses", 'fa-receipt',      'Expenses', navActive("/books/$bid/expenses")],
+        ];
+        foreach ($cands as $c) {
+            if (count($bbItems) >= 4) break;
+            if ($sidebarCan($c[0], 'view')) $bbItems[] = [$c[1], $c[2], $c[3], (bool)$c[4], false];
+        }
+    } else {
+        $bbItems[] = ["/books/$bid/contacts", 'fa-address-book', 'Contacts', (bool)navActive("/books/$bid/contacts"), false];
+        if ($sidebarIsOwner) $bbItems[] = ["/books/$bid/edit", 'fa-gear', 'Settings', (bool)navActive("/books/$bid/edit"), false];
+    }
+} else {
+    $bbItems[] = ['/books',       'fa-book',      'Books',    (bool)(activePage('books')),       false];
+    $bbItems[] = ['/wallet',      'fa-wallet',    'Wallet',   (bool)(activePage('wallet')),      true];
+    $bbItems[] = ['/marketplace', 'fa-store',     'Market',   (bool)(activePage('marketplace')), true];
+    $bbItems[] = ['/settings',    'fa-sliders',   'Settings', (bool)(activePage('settings')),    false];
+}
+
+// Floating button fallback for pages that have no "add" button of their own:
+// the business home gets "New sale" when the user may create invoices.
+$fabDefault = null;
+if ($sidebarBook && $sidebarBook['type'] === 'business'
+    && preg_match('#^/books/'.$currentBookId.'/?$#', $uri) && $sidebarCan('invoices', 'create')) {
+    $fabDefault = ['href' => "/books/$currentBookId/invoices/create?type=sale", 'label' => 'New sale', 'icon' => 'fa-plus'];
+}
+?>
+<nav class="bottom-bar" id="bottomBar" aria-label="Quick navigation">
+    <?php foreach ($bbItems as $it): ?>
+    <a href="<?= e($it[0]) ?>" class="bb-item <?= $it[3] ? 'active' : '' ?>">
+        <i class="fa-solid <?= e($it[1]) ?>"></i><span><?= e($it[2]) ?></span>
+        <?php if ($it[4]): ?><em class="bb-soon" style="font-style:normal">Soon</em><?php endif; ?>
+    </a>
+    <?php endforeach; ?>
+    <button type="button" class="bb-item" onclick="openDrawer()" aria-label="Open menu">
+        <i class="fa-solid fa-bars"></i><span>Menu</span>
+    </button>
+</nav>
+
+<button type="button" class="fab" id="appFab" aria-label="Add"
+        <?php if ($fabDefault): ?>data-default-href="<?= e($fabDefault['href']) ?>" data-default-label="<?= e($fabDefault['label']) ?>"<?php endif; ?>>
+    <i class="fa-solid fa-plus"></i><span class="fab-label"></span>
+</button>
 
 <?php
 // Determine if user can send notifications to this book
@@ -292,7 +355,7 @@ $canSendNotification = $currentBookId && ($sidebarIsOwner || $sidebarCan('employ
                     <i class="fa-solid fa-paper-plane"></i> Send
                 </a>
                 <?php endif; ?>
-                <button onclick="document.getElementById('notifBackdrop').classList.remove('open')" class="notif-close">
+                <button type="button" onclick="closeNotifPanel()" class="notif-close" aria-label="Close notifications">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
@@ -315,64 +378,7 @@ function filterBooks(q) {
 let notifLoaded = false;
 window._bookId = <?= $currentBookId ? (int)$currentBookId : 'null' ?>;
 
-// ── Sidebar collapse ────────────────────────────────────────────────────────
-(function() {
-    var PREF_KEY = 'sidebar_collapsed';
-
-    function initTooltips() {
-        // Set data-label on every nav-item from its text content (excluding icon text)
-        document.querySelectorAll('#sidebar .nav-item').forEach(function(el) {
-            if (el.hasAttribute('data-label')) return;
-            // Prefer explicit .nav-text span
-            var span = el.querySelector('.nav-text');
-            if (span) { el.setAttribute('data-label', span.textContent.trim()); return; }
-            // Clone and strip icon elements to get clean text
-            var clone = el.cloneNode(true);
-            clone.querySelectorAll('i, .notif-badge, .nav-chevron, .nav-dropdown-menu').forEach(function(n){ n.remove(); });
-            var label = clone.textContent.replace(/\s+/g, ' ').trim();
-            if (label) el.setAttribute('data-label', label);
-        });
-    }
-
-    function applyCollapsed(collapsed, animate) {
-        var sb   = document.getElementById('sidebar');
-        var icon = document.getElementById('sidebarCollapseIcon');
-        var main = document.querySelector('.app-main');
-        var cb = document.getElementById('sidebarCollapseBtn');
-        if (!sb) return;
-        if (collapsed) {
-            sb.classList.add('collapsed');
-            if (icon) icon.className = 'fa-solid fa-angles-right';
-            if (main) main.style.marginLeft = 'var(--sidebar-collapsed-w)';
-            if (cb) cb.title = 'Expand';
-        } else {
-            sb.classList.remove('collapsed');
-            if (icon) icon.className = 'fa-solid fa-angles-left';
-            if (main) main.style.marginLeft = 'var(--sidebar-w)';
-            if (cb) cb.title = 'Collapse';
-        }
-    }
-
-    window.toggleSidebar = function() {
-        var sb = document.getElementById('sidebar');
-        var collapsed = !sb.classList.contains('collapsed');
-        try { localStorage.setItem(PREF_KEY, collapsed ? '1' : '0'); } catch(e){}
-        applyCollapsed(collapsed, true);
-    };
-
-    document.addEventListener('DOMContentLoaded', function() {
-        initTooltips();
-        var pref = '0';
-        try { pref = localStorage.getItem(PREF_KEY) || '0'; } catch(e){}
-        // Apply without transition on first load to avoid flash
-        var sb = document.getElementById('sidebar');
-        if (sb) sb.style.transition = 'none';
-        applyCollapsed(pref === '1', false);
-        requestAnimationFrame(function() {
-            if (sb) sb.style.transition = '';
-        });
-    });
-})();
+// Sidebar collapse, drawer, bottom bar and floating button live in app.js (Shell section).
 function openNotifPanel(e) {
     if (e) e.preventDefault();
     document.getElementById('notifBackdrop').classList.add('open');
@@ -431,7 +437,7 @@ function openNotifPanel(e) {
         });
 }
 function closeNotifPanel(e) {
-    if (e && e.target !== document.getElementById('notifBackdrop')) return;
+    if (e && e.target !== document.getElementById('notifBackdrop')) return;   // click inside the panel: keep it open
     document.getElementById('notifBackdrop').classList.remove('open');
     notifLoaded = false; // reset so next open re-fetches (and badge gets cleared)
 }
@@ -480,8 +486,9 @@ function toggleNavDropdown(id, e) {
 }
 .nav-sub-item i { width:14px; text-align:center; font-size:12px; }
 .nav-sub-item:hover { background:var(--hover-bg, rgba(0,0,0,.05)); color:var(--text); }
+.nav-soon { margin-left:auto; font-size:9px; font-weight:700; letter-spacing:.4px; text-transform:uppercase; padding:1px 6px; border-radius:999px; background:var(--amber-bg); color:var(--amber); }
+.sidebar.collapsed .nav-soon { display:none; }
 .nav-sub-item.active { background:var(--brand-light, rgba(26,107,74,.1)); color:var(--brand); font-weight:600; }
 </style>
-<?php include BASE_PATH . '/views/partials/dev-warning.php'; ?>
 </body>
 </html>

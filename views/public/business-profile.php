@@ -362,6 +362,5 @@
 </div><!-- /.bp-card -->
 </div><!-- /.bp-container -->
 
-<?php include BASE_PATH . '/views/partials/dev-warning.php'; ?>
 </body>
 </html>

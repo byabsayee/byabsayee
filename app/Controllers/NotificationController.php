@@ -297,7 +297,7 @@ class NotificationController
 
     private function requireOwnerOrPermission(array $book, string $module, string $action): void
     {
-        if ($book['user_id'] === auth()['id']) return;
+        if ((int)$book['user_id'] === (int)auth()['id']) return;
         try {
             $member = Database::row(
                 'SELECT permissions FROM book_members WHERE book_id=? AND user_id=? AND status="active"',

@@ -1,6 +1,6 @@
 <?php
 $pageTitle = 'Employees — ' . e($book['name']);
-$isOwner   = $book['user_id'] === auth()['id'];
+$isOwner   = (int)$book['user_id'] === (int)auth()['id'];
 
 // Friendly module labels
 $moduleLabels = [
@@ -37,6 +37,7 @@ $actionLabels = [
     'invite'             => 'Invite',
     'record_payment'     => 'Record Payment',
     'manage_designations'=> 'Manage Designations',
+    'pay_salary'         => 'Pay Salary',
 ];
 
 // Collect existing departments for datalist autocomplete

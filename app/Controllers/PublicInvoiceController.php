@@ -22,7 +22,7 @@ class PublicInvoiceController
              FROM invoices i
              JOIN books b ON b.id = i.book_id
              LEFT JOIN book_business_details bd ON bd.book_id = b.id
-             WHERE i.public_token = ? AND i.deleted_at IS NULL',
+             WHERE i.public_token = ? AND i.deleted_at IS NULL AND b.deleted_at IS NULL',
             [$token]
         );
 
@@ -70,8 +70,9 @@ class PublicInvoiceController
 
         $invoice = Database::row(
             'SELECT i.public_token FROM invoices i
-             JOIN books b ON b.id=i.book_id
-             WHERE i.invoice_no=? AND b.slug=? AND i.deleted_at IS NULL',
+             JOIN books b ON b.id=i.book_id AND b.deleted_at IS NULL
+             JOIN business_handles bh ON bh.book_id=b.id
+             WHERE i.invoice_no=? AND bh.handle=? AND i.deleted_at IS NULL',
             [$invoiceNo, $slug]
         );
 

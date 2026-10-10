@@ -27,6 +27,7 @@ use App\Controllers\PrintController;
 use App\Controllers\SettingsController;
 use App\Controllers\ProfileController;
 use App\Controllers\BusinessProfileController;
+use App\Controllers\ComingSoonController;
 
 // =============================================================================
 // PUBLIC
@@ -107,6 +108,8 @@ $router->get( '/books/{id}/sales',                              [InvoiceControll
 $router->get( '/books/{id}/purchases',                          [InvoiceController::class, 'purchasesIndex']);
 $router->get( '/books/{id}/invoices/create',                    [InvoiceController::class, 'create']);
 $router->post('/books/{id}/invoices/create',                    [InvoiceController::class, 'store']);
+$router->get( '/books/{id}/invoices/{invoice_id}/edit',        [InvoiceController::class, 'edit']);
+$router->post('/books/{id}/invoices/{invoice_id}/edit',        [InvoiceController::class, 'update']);
 $router->get( '/books/{id}/invoices/{invoice_id}',              [InvoiceController::class, 'show']);
 $router->get( '/books/{id}/invoices/{invoice_id}/pdf',          [InvoiceController::class, 'pdf']);
 $router->get( '/books/{id}/invoices/{invoice_id}/thermal',      [InvoiceController::class, 'thermal']);
@@ -196,6 +199,7 @@ $router->post('/invitations/{token}/respond',  [EmployeeController::class, 'resp
 
 // ── Salary ────────────────────────────────────────────────────────────────────
 $router->post('/books/{id}/employees/{employee_id}/salary/pay',       [EmployeeController::class, 'paySalary']);
+$router->post('/books/{id}/employees/{employee_id}/salary/{payment_id}/delete', [EmployeeController::class, 'deleteSalaryPayment']);
 $router->post('/books/{id}/employees/{employee_id}/send-invite',      [EmployeeController::class, 'sendInviteForEmployee']);
 
 // ── Notifications ─────────────────────────────────────────────────────────────
@@ -248,13 +252,13 @@ use App\Controllers\TwoFactorController;
 $router->get( '/books/{id}/logs',                           [BookLogsController::class, 'index']);
 
 // ── 2FA Setup & Challenge ──────────────────────────────────────────────────────
-$router->get( '/2fa/setup',       [TwoFactorController::class, 'showSetup']);
-$router->post('/2fa/setup',       [TwoFactorController::class, 'saveSetup']);
+// 2FA is set up from Profile → Security. The old /2fa/setup + /2fa/disable routes pointed at methods that never existed (500 error).
+$router->get( '/2fa/setup',       function() { redirect('/profile?tab=security'); });
 $router->get( '/2fa/challenge',   [TwoFactorController::class, 'showChallenge']);
 $router->get( '/profile/security/totp-setup',  [TwoFactorController::class, 'getTotpSetup']);
 $router->post('/2fa/challenge',   [TwoFactorController::class, 'verifyChallenge']);
 $router->post('/2fa/send-otp',    [TwoFactorController::class, 'sendOtp']);
-$router->post('/2fa/disable',     [TwoFactorController::class, 'disable']);
+$router->post('/2fa/disable',     function() { redirect('/profile?tab=security'); });
 
 // ── Email Verification ────────────────────────────────────────────────────────
 // /verify-email is handled by AuthController (registered earlier) for registration tokens.
@@ -298,3 +302,8 @@ $router->post('/books/{id}/integrations/queue/retry',              [IntegrationC
 $router->post('/books/{id}/integrations/queue/discard',            [IntegrationController::class, 'discard']);
 $router->post('/books/{id}/integrations/conflicts/{cid}/resolve',  [IntegrationController::class, 'resolve']);
 $router->post('/books/{id}/invoices/{invoice_id}/fulfilment',      [IntegrationController::class, 'fulfilment']);
+
+// ── Planned modules (placeholder pages so navigation never 404s) ─────────────
+$router->get('/wallet',                 [ComingSoonController::class, 'show']);
+$router->get('/marketplace',            [ComingSoonController::class, 'show']);
+$router->get('/books/{id}/deliveries',  [ComingSoonController::class, 'show']);

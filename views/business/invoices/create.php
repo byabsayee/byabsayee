@@ -1,6 +1,10 @@
 <?php
-$pageTitle = 'New Invoice — ' . e($book['name']);
+$invoice   = $invoice ?? null;
+$isEdit    = $invoice !== null;
+$editItems = $editItems ?? [];
+$pageTitle = ($isEdit ? 'Edit Invoice — ' : 'New Invoice — ') . e($book['name']);
 $isSale    = ($type !== 'purchase');
+$iv        = fn($k, $d = '') => $isEdit ? ($invoice[$k] ?? $d) : $d;   // prefill helper
 $sym       = $defaultCurrency['symbol'] ?? '৳';
 ob_start();
 ?>
@@ -10,18 +14,24 @@ ob_start();
         <div class="breadcrumb">
             <a href="/books/<?= $book['id'] ?>">Books</a> <span>›</span>
             <a href="/books/<?= $book['id'] ?>/invoices">Invoices</a> <span>›</span>
-            <span>New <?= $isSale ? 'Sale' : 'Purchase' ?></span>
+            <?php if ($isEdit): ?><a href="/books/<?= $book['id'] ?>/invoices/<?= $invoice['id'] ?>"><?= e($invoice['invoice_no']) ?></a> <span>›</span> <span>Edit</span>
+            <?php else: ?><span>New <?= $isSale ? 'Sale' : 'Purchase' ?></span><?php endif; ?>
         </div>
-        <h1>New <?= $isSale ? 'Sale Invoice' : 'Purchase Invoice' ?></h1>
+        <h1><?= $isEdit ? 'Edit ' . e($invoice['invoice_no']) : 'New ' . ($isSale ? 'Sale Invoice' : 'Purchase Invoice') ?></h1>
+        <?php if ($isEdit && (float)$invoice['paid'] > 0): ?>
+        <p style="font-size:12px;color:var(--text-muted);margin-top:4px">
+            <?= format_money((float)$invoice['paid'], $invoice['currency_symbol'] ?? '৳') ?> is already paid on this invoice — the new total cannot go below it. Stock, the <?= $isSale ? 'due' : 'debt' ?>, loyalty points and reports update to match when you save.
+        </p>
+        <?php endif; ?>
     </div>
 </div>
 
-<form method="POST" action="/books/<?= $book['id'] ?>/invoices/create"
+<form method="POST" action="/books/<?= $book['id'] ?>/invoices/<?= $isEdit ? $invoice['id'] . '/edit' : 'create' ?>"
       id="invoiceForm" enctype="multipart/form-data">
 <input type="hidden" name="_csrf"           value="<?= csrf_token() ?>">
 <input type="hidden" name="type"            value="<?= e($type) ?>">
-<input type="hidden" name="currency_symbol" id="currencySymbol" value="<?= e($sym) ?>">
-<input type="hidden" name="currency_code"   id="currencyCode"   value="<?= e($defaultCurrency['code']??'BDT') ?>">
+<input type="hidden" name="currency_symbol" id="currencySymbol" value="<?= e($isEdit ? ($invoice['currency_symbol'] ?? $sym) : $sym) ?>">
+<input type="hidden" name="currency_code"   id="currencyCode"   value="<?= e($isEdit ? ($invoice['currency_code'] ?? 'BDT') : ($defaultCurrency['code']??'BDT')) ?>">
 
 <div style="display:grid;grid-template-columns:1fr 300px;gap:20px;align-items:start">
 
@@ -40,7 +50,7 @@ ob_start();
                 <select id="currencySelect" onchange="setCurrency(this)">
                     <?php foreach ($currencies as $c): ?>
                     <option value="<?= e($c['symbol']) ?>" data-code="<?= e($c['code']) ?>"
-                            <?= $c['is_default'] ? 'selected' : '' ?>>
+                            <?= ($isEdit ? ($invoice['currency_code'] ?? '') === $c['code'] : $c['is_default']) ? 'selected' : '' ?>>
                         <?= e($c['code']) ?> (<?= e($c['symbol']) ?>)
                     </option>
                     <?php endforeach; ?>
@@ -51,11 +61,11 @@ ob_start();
             </div>
             <div class="form-group">
                 <label>Date *</label>
-                <input type="date" name="date" value="<?= date('Y-m-d') ?>" required>
+                <input type="date" name="date" value="<?= e($iv('date', date('Y-m-d'))) ?>" required>
             </div>
             <div class="form-group">
                 <label>Due Date</label>
-                <input type="date" name="due_date">
+                <input type="date" name="due_date" value="<?= e($iv('due_date')) ?>">
             </div>
 
             <?php if ($isSale): ?>
@@ -73,7 +83,7 @@ ob_start();
                     <option value="">— Walk-in Customer —</option>
                     <?php foreach ($customers as $c): ?>
                     <option value="<?= $c['id'] ?>" data-points="<?= $c['points'] ?>"
-                            <?= ($_GET['customer_id']??'')==$c['id']?'selected':'' ?>>
+                            <?= (string)($isEdit ? ($invoice['customer_id'] ?? '') : ($_GET['customer_id'] ?? ''))===(string)$c['id']?'selected':'' ?>>
                         <?= e($c['name']) ?><?= $c['phone'] ? ' — '.$c['phone'] : '' ?> (<?= $c['points'] ?> pts)
                     </option>
                     <?php endforeach; ?>
@@ -84,8 +94,11 @@ ob_start();
                 <select name="delivery_method">
                     <option value="">— None —</option>
                     <?php foreach ($deliveryMethods as $m): ?>
-                    <option value="<?= e($m['label']) ?>"><?= e($m['label']) ?></option>
+                    <option value="<?= e($m['label']) ?>" <?= $iv('delivery_method') === $m['label'] ? 'selected' : '' ?>><?= e($m['label']) ?></option>
                     <?php endforeach; ?>
+                    <?php if ($iv('delivery_method') && !in_array($iv('delivery_method'), array_column($deliveryMethods, 'label'), true)): ?>
+                    <option value="<?= e($iv('delivery_method')) ?>" selected><?= e($iv('delivery_method')) ?></option>
+                    <?php endif; ?>
                 </select>
             </div>
             <div class="form-group">
@@ -93,11 +106,14 @@ ob_start();
                 <select name="payment_method">
                     <option value="">— None —</option>
                     <?php foreach ($paymentMethods as $m): ?>
-                    <option value="<?= e($m['label']) ?>"><?= e($m['label']) ?></option>
+                    <option value="<?= e($m['label']) ?>" <?= $iv('payment_method') === $m['label'] ? 'selected' : '' ?>><?= e($m['label']) ?></option>
                     <?php endforeach; ?>
+                    <?php if ($iv('payment_method') && !in_array($iv('payment_method'), array_column($paymentMethods, 'label'), true)): ?>
+                    <option value="<?= e($iv('payment_method')) ?>" selected><?= e($iv('payment_method')) ?></option>
+                    <?php endif; ?>
                 </select>
             </div>
-            <?php if (\App\Services\Integration\Hooks::active((int)$book['id'])): ?>
+            <?php if (!$isEdit && \App\Services\Integration\Hooks::active((int)$book['id'])): ?>
             <div class="form-group full">
                 <label style="display:flex;gap:8px;align-items:flex-start;font-weight:600;cursor:pointer">
                     <input type="checkbox" name="sync_to_store" value="1" style="margin-top:3px">
@@ -121,7 +137,7 @@ ob_start();
                     <option value="">— Select Supplier —</option>
                     <?php foreach ($suppliers as $s): ?>
                     <option value="<?= $s['id'] ?>"
-                            <?= ($_GET['supplier_id']??'')==$s['id']?'selected':'' ?>>
+                            <?= (string)($isEdit ? ($invoice['supplier_id'] ?? '') : ($_GET['supplier_id'] ?? ''))===(string)$s['id']?'selected':'' ?>>
                         <?= e($s['name']) ?><?= $s['company'] ? ' ('.$s['company'].')' : '' ?>
                     </option>
                     <?php endforeach; ?>
@@ -167,11 +183,11 @@ ob_start();
         <div class="form-grid">
             <div class="form-group">
                 <label>Customer Note</label>
-                <textarea name="note_customer" placeholder="e.g. Thank you!" style="min-height:60px"></textarea>
+                <textarea name="note_customer" placeholder="e.g. Thank you!" style="min-height:60px"><?= e($iv('note_customer')) ?></textarea>
             </div>
             <div class="form-group">
                 <label>Seller Note</label>
-                <textarea name="note_seller" placeholder="e.g. No refund after 7 days" style="min-height:60px"></textarea>
+                <textarea name="note_seller" placeholder="e.g. No refund after 7 days" style="min-height:60px"><?= e($iv('note_seller')) ?></textarea>
             </div>
         </div>
     </div>
@@ -198,7 +214,7 @@ ob_start();
             </div>
             <div style="display:flex;justify-content:space-between;align-items:center">
                 <label style="color:var(--text-muted)">Discount</label>
-                <input type="number" name="discount" id="inp_discount" value="0" min="0" step="0.01" oninput="recalc()" class="summary-input">
+                <input type="number" name="discount" id="inp_discount" value="<?= e($iv('discount', 0)) ?>" min="0" step="0.01" oninput="recalc()" class="summary-input">
             </div>
             <?php if ($isSale): ?>
             <!-- Privilege Discount (read-only, auto-applied per customer) -->
@@ -209,7 +225,7 @@ ob_start();
                 </div>
                 <strong id="privilege_discount_display" style="color:var(--green)">-0.00</strong>
             </div>
-            <input type="hidden" name="privilege_discount" id="inp_privilege_discount" value="0">
+            <input type="hidden" name="privilege_discount" id="inp_privilege_discount" value="<?= e($iv('privilege_discount', 0)) ?>">
             <!-- Coupon Code -->
             <div>
                 <div style="display:flex;justify-content:space-between;align-items:center;gap:6px">
@@ -218,12 +234,12 @@ ob_start();
                         <input type="text" id="couponCodeInput" name="coupon_code"
                                placeholder="Enter code…"
                                style="width:100px;padding:5px 8px;border:1.5px solid var(--border);border-radius:7px;font-size:12px;font-family:inherit;text-align:right;outline:none;text-transform:uppercase"
-                               oninput="this.value=this.value.toUpperCase()">
+                               value="<?= e($iv('coupon_code')) ?>" oninput="this.value=this.value.toUpperCase()">
                         <button type="button" onclick="applyCoupon()" class="btn btn-sm btn-secondary" style="padding:5px 8px;font-size:12px">Apply</button>
                     </div>
                 </div>
                 <div id="couponStatus" style="font-size:11px;margin-top:4px;text-align:right;min-height:15px"></div>
-                <input type="hidden" name="coupon_discount" id="inp_coupon_discount" value="0">
+                <input type="hidden" name="coupon_discount" id="inp_coupon_discount" value="<?= e($iv('coupon_discount', 0)) ?>">
                 <div id="coupon_discount_row" style="display:none;justify-content:space-between;margin-top:2px">
                     <span style="color:var(--text-muted);font-size:13px">Coupon Discount</span>
                     <strong id="couponDiscountDisplay" style="font-size:13px;color:var(--green)">-0.00</strong>
@@ -233,29 +249,29 @@ ob_start();
                 <div>
                     <label style="color:var(--text-muted)">Use Points</label>
                     <label style="display:inline-flex;align-items:center;gap:4px;cursor:pointer;margin-left:8px">
-                        <input type="checkbox" id="usePointsToggle" onchange="togglePoints()" style="accent-color:var(--brand)">
+                        <input type="checkbox" id="usePointsToggle" onchange="togglePoints()" <?= $isEdit && (float)$iv('points_discount', 0) > 0 ? 'checked' : '' ?> style="accent-color:var(--brand)">
                         <span id="availablePoints" style="font-size:11px;color:var(--text-muted)"></span>
                     </label>
                 </div>
-                <input type="number" name="points_discount" id="inp_points" value="0" min="0" step="1" oninput="recalc()" class="summary-input" disabled>
+                <input type="number" name="points_discount" id="inp_points" value="<?= (int)$iv('points_discount', 0) ?>" min="0" step="1" oninput="recalc()" class="summary-input" <?= $isEdit && (float)$iv('points_discount', 0) > 0 ? '' : 'disabled' ?>>
             </div>
             <div style="display:flex;justify-content:space-between;align-items:center">
                 <label style="color:var(--text-muted)">Delivery Charge</label>
-                <input type="number" name="delivery_charge" id="inp_delivery" value="0" min="0" step="0.01" oninput="recalc()" class="summary-input">
+                <input type="number" name="delivery_charge" id="inp_delivery" value="<?= e($iv('delivery_charge', 0)) ?>" min="0" step="0.01" oninput="recalc()" class="summary-input">
             </div>
             <div style="display:flex;justify-content:space-between;align-items:center">
                 <label style="color:var(--text-muted)">Handling Charge</label>
-                <input type="number" name="handling_charge" id="inp_handling" value="0" min="0" step="0.01" oninput="recalc()" class="summary-input">
+                <input type="number" name="handling_charge" id="inp_handling" value="<?= e($iv('handling_charge', 0)) ?>" min="0" step="0.01" oninput="recalc()" class="summary-input">
             </div>
             <div style="padding:8px 10px;background:var(--bg);border-radius:8px;border:1px solid var(--border)">
                 <div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:6px">DELIVERY TYPE</div>
                 <div style="display:flex;gap:12px">
                     <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px">
-                        <input type="radio" name="delivery_type" value="own" checked style="accent-color:var(--brand)">
+                        <input type="radio" name="delivery_type" value="own" <?= $iv('delivery_type', 'own') !== 'other' ? 'checked' : '' ?> style="accent-color:var(--brand)">
                         <span><strong>Own</strong> <span style="color:var(--text-muted)">(income)</span></span>
                     </label>
                     <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px">
-                        <input type="radio" name="delivery_type" value="other" style="accent-color:var(--brand)">
+                        <input type="radio" name="delivery_type" value="other" <?= $iv('delivery_type', 'own') === 'other' ? 'checked' : '' ?> style="accent-color:var(--brand)">
                         <span><strong>3rd Party</strong> <span style="color:var(--text-muted)">(→ expense)</span></span>
                     </label>
                 </div>
@@ -263,7 +279,7 @@ ob_start();
             <?php endif; ?>
             <div style="display:flex;justify-content:space-between;align-items:center">
                 <label style="color:var(--text-muted)">Tax</label>
-                <input type="number" name="tax" id="inp_tax" value="0" min="0" step="0.01" oninput="recalc()" class="summary-input">
+                <input type="number" name="tax" id="inp_tax" value="<?= e($iv('tax', 0)) ?>" min="0" step="0.01" oninput="recalc()" class="summary-input">
             </div>
             <div style="display:flex;justify-content:space-between;align-items:center">
                 <div>
@@ -271,7 +287,7 @@ ob_start();
                     <div style="font-size:10px;color:var(--text-muted)">removes cents from total</div>
                 </div>
                 <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer">
-                    <input type="checkbox" name="rounding_enabled" id="chk_rounding" onchange="recalc()" style="accent-color:var(--brand);width:16px;height:16px">
+                    <input type="checkbox" name="rounding_enabled" id="chk_rounding" onchange="recalc()" <?= $isEdit && (float)$iv('rounding', 0) > 0 ? 'checked' : '' ?> style="accent-color:var(--brand);width:16px;height:16px">
                     <span id="roundingDisplay" style="font-size:12px;color:var(--text-muted)">off</span>
                 </label>
             </div>
@@ -281,8 +297,8 @@ ob_start();
             </div>
         </div>
     </div>
-    <button type="submit" class="btn btn-primary" style="width:100%;height:46px;font-size:15px">Save Invoice</button>
-    <a href="/books/<?= $book['id'] ?>/invoices" class="btn btn-secondary" style="width:100%;text-align:center">Cancel</a>
+    <button type="submit" class="btn btn-primary" style="width:100%;height:46px;font-size:15px">Save <?= $isEdit ? 'Changes' : 'Invoice' ?></button>
+    <a href="/books/<?= $book['id'] ?>/invoices<?= $isEdit ? '/' . $invoice['id'] : '' ?>" class="btn btn-secondary" style="width:100%;text-align:center">Cancel</a>
 </div>
 
 </div>
@@ -347,7 +363,7 @@ const CUSTOMERS = <?= json_encode(array_map(function($c) {
 const SUPPLIERS = <?= json_encode(array_map(fn($s) => ['id'=>$s['id'],'name'=>$s['name'],'company'=>$s['company']??''], $suppliers), JSON_UNESCAPED_UNICODE) ?>;
 
 let rowCount    = 0;
-let currentSym  = '<?= e($sym) ?>';
+let currentSym  = '<?= e($isEdit ? ($invoice['currency_symbol'] ?? $sym) : $sym) ?>';
 let customerPts = 0;
 window._customerPrivileges = [];
 
@@ -629,15 +645,15 @@ async function applyCoupon() {
     for (let i = 0; i < rowCount; i++) {
         const qEl = document.getElementById('iqty_'+i);
         const pEl = document.getElementById('iprice_'+i);
-        const dEl = document.getElementById('idisc_'+i);
+        const dEl = document.getElementById('idisc_'+i);   // there is no per-line discount box — treat as 0 (reading .value of null used to break every coupon)
         if (!qEl) continue;
-        subtotal += (parseFloat(qEl.value)||0)*(parseFloat(pEl.value)||0)*(1-(parseFloat(dEl.value)||0)/100);
+        subtotal += (parseFloat(qEl.value)||0)*(parseFloat(pEl.value)||0)*(1-(dEl ? (parseFloat(dEl.value)||0) : 0)/100);
     }
 
     if (statusEl) statusEl.innerHTML = '<span style="color:#888">Checking…</span>';
 
     try {
-        const res  = await fetch(`/books/<?= $book['id'] ?>/coupons/validate?code=${encodeURIComponent(code)}&subtotal=${subtotal}`);
+        const res  = await fetch(`/books/<?= $book['id'] ?>/coupons/validate?code=${encodeURIComponent(code)}&subtotal=${subtotal}<?= $isEdit ? '&invoice_id=' . (int)$invoice['id'] : '' ?>`);
         const data = await res.json();
 
         if (data.error) {
@@ -670,11 +686,30 @@ document.getElementById('couponCodeInput')?.addEventListener('keydown', e => {
     if (e.key === 'Enter') { e.preventDefault(); applyCoupon(); }
 });
 
+<?php if ($isEdit && $editItems): ?>
+// Edit: start from the lines already on the invoice
+const EDIT_ITEMS = <?= json_encode(array_map(fn($it) => [
+    'name' => $it['description'], 'qty' => (float)$it['qty'], 'price' => (float)$it['unit_price'], 'disc' => (float)$it['discount_pct'],
+    'pid' => $it['product_id'] ?? '', 'variant' => $it['variant'] ?? '',
+], $editItems), JSON_UNESCAPED_UNICODE) ?>;
+EDIT_ITEMS.forEach(it => {
+    const prod = PRODUCTS.find(x => x.id === it.pid);
+    addRow(it.name, it.qty, it.price, it.disc, it.pid, it.variant, prod ? (prod.variants || []) : []);
+});
+<?php else: ?>
 // Start with one empty row
 addRow();
+<?php endif; ?>
 // Trigger privilege/points load if customer is pre-selected
 const _preSelCust = document.getElementById('customerSel');
 if (_preSelCust && _preSelCust.value) customerSelected(_preSelCust);
+<?php if ($isEdit && !empty($invoice['coupon_code'])): ?>
+applyCoupon();   // re-check the coupon against the lines as they are now
+<?php endif; ?>
+<?php if ($isEdit && (float)($invoice['points_discount'] ?? 0) > 0): ?>
+{ const inp = document.getElementById('inp_points'); if (inp) { inp.disabled = false; inp.value = <?= (int)$invoice['points_discount'] ?>; } recalc(); }
+<?php endif; ?>
+recalc();
 </script>
 
 <?php $content = ob_get_clean(); require BASE_PATH . '/views/partials/layout.php'; ?>

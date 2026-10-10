@@ -74,9 +74,23 @@ function csrf_token(): string
 function csrf_verify(): void
 {
     $token = $_POST['_csrf'] ?? $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
-    if (!hash_equals($_SESSION['_csrf_token'] ?? '', $token)) {
-        http_response_code(403);
-        die('Invalid CSRF token. Please go back and try again.');
+    if (!hash_equals($_SESSION['_csrf_token'] ?? '', (string)$token)) {
+        $wantsJson = str_contains((string)($_SERVER['HTTP_ACCEPT'] ?? ''), 'application/json')
+                  || strtolower((string)($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '')) === 'xmlhttprequest';
+        if ($wantsJson) {
+            json_response(['ok' => false, 'error' => 'Your session expired. Please reload the page and try again.'], 403);
+        }
+        // Send people back to the page they came from with a clear message instead of a dead-end text page.
+        $back = '/';
+        $ref  = (string)($_SERVER['HTTP_REFERER'] ?? '');
+        if ($ref !== '') {
+            $p = parse_url($ref);
+            if (!empty($p['path']) && (empty($p['host']) || strcasecmp((string)$p['host'], explode(':', (string)($_SERVER['HTTP_HOST'] ?? ''))[0]) === 0)) {
+                $back = $p['path'] . (isset($p['query']) ? '?' . $p['query'] : '');
+            }
+        }
+        if (!isset($_SESSION)) { http_response_code(403); die('Invalid CSRF token. Please go back and try again.'); }
+        redirect($back, ['error' => 'That form was out of date or your session expired. Nothing was saved — please try again.']);
     }
 }
 
@@ -90,11 +104,67 @@ function guest(): bool
     return !isset($_SESSION['user']);
 }
 
+/**
+ * The slice of a `users` row that is safe to keep in $_SESSION. Never keep the password hash,
+ * the authenticator secret or the e-mail verification token in the session file.
+ */
+function session_user_from_row(array $row): array
+{
+    unset($row['password_hash'], $row['two_fa_secret'], $row['verification_token']);
+    return $row;
+}
+
+/** Reload the logged-in user's row into the session (call after any change to the users table). */
+function refresh_session_user(int $userId): void
+{
+    $row = \App\Helpers\Database::row('SELECT * FROM users WHERE id=?', [$userId]);
+    if ($row) $_SESSION['user'] = session_user_from_row($row);
+}
+
+/** Register the current PHP session in "Active sessions" (idempotent). */
+function track_session(int $userId): void
+{
+    try {
+        \App\Helpers\Database::run(
+            'INSERT INTO user_sessions (user_id, session_id, ip_address, user_agent, last_active_at)
+             VALUES (?,?,?,?,NOW())
+             ON DUPLICATE KEY UPDATE user_id=VALUES(user_id), last_active_at=NOW(), ip_address=VALUES(ip_address)',
+            [$userId, session_id(), $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0', substr($_SERVER['HTTP_USER_AGENT'] ?? 'Unknown', 0, 255)]
+        );
+        $_SESSION['_sess_tracked'] = 1;
+    } catch (\Throwable $e) { /* table may not exist yet */ }
+}
+
+/**
+ * Physically destroy another PHP session (used by "sign out this device / all other devices"),
+ * so that browser is logged out on its very next request. The current session is left untouched.
+ */
+function destroy_session_by_id(string $sid): void
+{
+    if ($sid === '' || $sid === session_id() || !preg_match('/^[A-Za-z0-9,-]{16,128}$/', $sid)) return;
+    $current = session_id();
+    session_write_close();
+    session_id($sid);
+    session_start(['use_cookies' => 0, 'use_only_cookies' => 1, 'cache_limiter' => '']);
+    $_SESSION = [];
+    session_destroy();
+    session_id($current);
+    session_start(['use_cookies' => 0, 'use_only_cookies' => 1, 'cache_limiter' => '']);
+}
+
 // FIX: asset() now uses the actual request host instead of APP_URL.
 // This means CSS/JS links work from any IP or hostname without touching .env.
+function request_is_https(): bool
+{
+    return (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+        || strtolower((string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')) === 'https';
+}
+
 function asset(string $path): string
 {
-    $scheme = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? 'https' : 'http';
+    // nginx itself speaks plain HTTP behind the tunnel/proxy, so also trust X-Forwarded-Proto —
+    // otherwise CSS/JS links come out as http:// on an https:// page and browsers block them.
+    $scheme = request_is_https() ? 'https' : 'http';
     $host   = $_SERVER['HTTP_HOST'] ?? 'localhost';
     return $scheme . '://' . $host . '/' . ltrim($path, '/');
 }
@@ -154,6 +224,22 @@ function slugify(string $text): string
     $text = mb_strtolower($text, 'UTF-8');
     $text = preg_replace('/[^a-z0-9]+/', '-', $text);
     return trim($text, '-');
+}
+
+/** A real calendar date in Y-m-d, or $fallback (default: null) when the input is empty / malformed. */
+function valid_date(?string $value, ?string $fallback = null): ?string
+{
+    $value = trim((string)$value);
+    $d = \DateTime::createFromFormat('!Y-m-d', $value);
+    return ($d && $d->format('Y-m-d') === $value) ? $value : $fallback;
+}
+
+/** A time of day as H:i:s (accepts H:i or H:i:s), or null when empty / malformed. */
+function valid_time(?string $value): ?string
+{
+    $value = trim((string)$value);
+    if (!preg_match('/^([01]\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?$/', $value, $m)) return null;
+    return sprintf('%s:%s:%s', $m[1], $m[2], $m[3] ?? '00');
 }
 
 function format_money(float $amount, string $symbol = '৳'): string

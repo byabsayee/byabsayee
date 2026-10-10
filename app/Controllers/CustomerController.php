@@ -153,6 +153,10 @@ class CustomerController
         $book     = $this->getBookOrFail($params['id']);
         if (!book_can($book, 'customers', 'delete')) abort_403();
         $customer = $this->getCustomerOrFail($params['customer_id'], $book['id']);
+        $open = \App\Services\LedgerService::openBalance('customer', (int)$customer['id']);
+        if ($open['count'] > 0 && empty($_POST['confirm_open'])) {
+            redirect('/books/'.$book['id'].'/customers/'.$customer['id'], ['error' => $customer['name'] . ' still has ' . format_money($open['amount']) . ' open across ' . $open['count'] . ' due' . ($open['count'] > 1 ? 's' : '') . '. Settle or cancel ' . ($open['count'] > 1 ? 'them' : 'it') . ' first — or use Delete on this page and confirm to remove the customer anyway (the records stay in your books).']);
+        }
 
         ActivityLogger::write($book['id'], auth()['id'], 'customer.deleted', 'Customer', (int)$customer['id'],
             "Customer deleted — {$customer['name']}", ['name'=>$customer['name']]);

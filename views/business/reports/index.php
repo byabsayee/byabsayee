@@ -7,20 +7,22 @@ $nextMonth = date('Y-m', strtotime($month . '-01 +1 month'));
 $isCurrent = $month === date('Y-m');
 
 $catMeta = [
-    'Sale Invoice'               => ['var(--green)',  'fa-file-invoice-dollar'],
-    'Purchase Invoice'           => ['var(--blue)',   'fa-cart-shopping'],
+    'Sale Payment'               => ['var(--green)',  'fa-file-invoice-dollar'],
+    'POS Sale'                   => ['var(--green)',  'fa-cash-register'],
+    'Purchase Payment'           => ['var(--blue)',   'fa-cart-shopping'],
     'Sales Return (Refund)'      => ['var(--red)',    'fa-rotate-left'],
     'Purchase Return (Recovery)' => ['var(--green)',  'fa-truck-ramp-box'],
     'Expense:'                   => ['var(--red)',    'fa-receipt'],
+    'Expenses'                   => ['var(--red)',    'fa-receipt'],
     'Fund Received'              => ['var(--green)',  'fa-piggy-bank'],
     'Fund Withdrawn'             => ['var(--red)',    'fa-circle-arrow-up'],
     'Due Payment'                => ['var(--green)',  'fa-hand-holding-dollar'],
     'Debt Repayment'             => ['var(--red)',    'fa-hand-holding-dollar'],
     'Salary Payment'             => ['var(--amber)',  'fa-user-tie'],
 ];
+$GLOBALS['catMeta'] = $catMeta;   // the view is included inside a controller method, so a bare `global` saw null (no icons/colours)
 function catMeta(string $cat): array {
-    global $catMeta;
-    foreach ($catMeta as $k => $v) {
+    foreach ($GLOBALS['catMeta'] as $k => $v) {
         if (str_starts_with($cat, $k)) return $v;
     }
     return ['var(--text-muted)', 'fa-circle'];
@@ -34,7 +36,7 @@ function catMeta(string $cat): array {
             <span>Reports</span>
         </div>
         <h1><i class="fa-solid fa-chart-line" style="color:var(--brand)"></i> Reports & Ledger</h1>
-        <p>Every money-in and money-out transaction for this business.</p>
+        <p>Cash that actually moved in and out of this business, plus what was booked and what is still owed.</p>
     </div>
     <div style="display:flex;gap:8px">
         <button class="btn btn-secondary btn-sm" data-modal="printModal">
@@ -43,24 +45,73 @@ function catMeta(string $cat): array {
     </div>
 </div>
 
-<!-- Summary cards -->
-<div class="stat-grid" style="grid-template-columns:repeat(3,1fr);max-width:600px;margin-bottom:20px">
+<!-- Summary: cash (money that really moved) -->
+<?php $net = $totalIn - $totalOut; $closing = $openingBalance + $net; ?>
+<div class="stat-grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));max-width:900px;margin-bottom:12px">
     <div class="stat-card" style="border-top:3px solid var(--green)">
-        <div class="stat-label"><i class="fa-solid fa-arrow-down" style="color:var(--green)"></i> Total Income</div>
+        <div class="stat-label"><i class="fa-solid fa-arrow-down" style="color:var(--green)"></i> Cash In</div>
         <div class="stat-value green"><?= $sym . number_format($totalIn, 0) ?></div>
     </div>
     <div class="stat-card" style="border-top:3px solid var(--red)">
-        <div class="stat-label"><i class="fa-solid fa-arrow-up" style="color:var(--red)"></i> Total Outgoing</div>
+        <div class="stat-label"><i class="fa-solid fa-arrow-up" style="color:var(--red)"></i> Cash Out</div>
         <div class="stat-value red"><?= $sym . number_format($totalOut, 0) ?></div>
     </div>
     <div class="stat-card" style="border-top:3px solid var(--brand)">
-        <div class="stat-label"><i class="fa-solid fa-scale-balanced" style="color:var(--brand)"></i> Net</div>
-        <?php $net = $totalIn - $totalOut; ?>
-        <div class="stat-value <?= $net >= 0 ? 'green' : 'red' ?>">
-            <?= ($net >= 0 ? '+' : '') . $sym . number_format(abs($net), 0) ?>
-        </div>
+        <div class="stat-label"><i class="fa-solid fa-scale-balanced" style="color:var(--brand)"></i> Net Cash</div>
+        <div class="stat-value <?= $net >= 0 ? 'green' : 'red' ?>"><?= ($net >= 0 ? '+' : '-') . $sym . number_format(abs($net), 0) ?></div>
+    </div>
+    <div class="stat-card" style="border-top:3px solid var(--blue)">
+        <div class="stat-label"><i class="fa-solid fa-wallet" style="color:var(--blue)"></i> Cash Balance</div>
+        <div class="stat-value <?= $closing >= 0 ? '' : 'red' ?>"><?= ($closing < 0 ? '-' : '') . $sym . number_format(abs($closing), 0) ?></div>
+        <div style="font-size:11px;color:var(--text-muted)">from <?= $sym . number_format($openingBalance, 0) ?> at start of month</div>
     </div>
 </div>
+
+<!-- Summary: what was booked this month, and what is still owed -->
+<div class="stat-grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));max-width:900px;margin-bottom:20px">
+    <div class="stat-card">
+        <div class="stat-label">Sales (net of returns)</div>
+        <div class="stat-value"><?= $sym . number_format($operating['net_sales'], 0) ?></div>
+        <div style="font-size:11px;color:var(--text-muted)"><?= (int)$operating['sale_count'] ?> invoice<?= $operating['sale_count']==1?'':'s' ?></div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Purchases (net of returns)</div>
+        <div class="stat-value"><?= $sym . number_format($operating['net_purchases'], 0) ?></div>
+        <div style="font-size:11px;color:var(--text-muted)"><?= (int)$operating['purchase_count'] ?> invoice<?= $operating['purchase_count']==1?'':'s' ?></div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Expenses</div>
+        <div class="stat-value"><?= $sym . number_format($operating['expenses'], 0) ?></div>
+    </div>
+    <div class="stat-card" style="border-top:3px solid <?= $operating['result'] >= 0 ? 'var(--green)' : 'var(--red)' ?>">
+        <div class="stat-label" title="Sales − purchases − expenses booked this month, before any change in stock">Operating Result</div>
+        <div class="stat-value <?= $operating['result'] >= 0 ? 'green' : 'red' ?>"><?= ($operating['result'] < 0 ? '-' : '') . $sym . number_format(abs($operating['result']), 0) ?></div>
+    </div>
+    <div class="stat-card" style="border-top:3px solid var(--amber)">
+        <div class="stat-label">Customers Owe You</div>
+        <div class="stat-value"><?= $sym . number_format($position['receivable'], 0) ?></div>
+        <div style="font-size:11px;color:var(--text-muted)"><?= (int)$position['receivable_count'] ?> open · today</div>
+    </div>
+    <div class="stat-card" style="border-top:3px solid var(--amber)">
+        <div class="stat-label">You Owe</div>
+        <div class="stat-value"><?= $sym . number_format($position['payable'], 0) ?></div>
+        <div style="font-size:11px;color:var(--text-muted)"><?= (int)$position['payable_count'] ?> open · today</div>
+    </div>
+</div>
+
+<?php if (!empty($categories)): ?>
+<div class="table-wrap" style="padding:12px 14px;margin-bottom:16px;max-width:900px">
+    <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:8px">Cash by category</div>
+    <?php $maxCat = 0; foreach ($categories as $c) $maxCat = max($maxCat, $c['in'] + $c['out']); ?>
+    <?php foreach ($categories as $name => $c): [$clr, $icon] = catMeta($name); $v = $c['in'] + $c['out']; $isInCat = $c['in'] >= $c['out']; ?>
+    <div style="display:flex;align-items:center;gap:10px;padding:5px 0;font-size:13px">
+        <span style="width:190px;flex-shrink:0;color:<?= $clr ?>;font-weight:600"><i class="fa-solid <?= $icon ?>"></i> <?= e($name) ?> <span style="color:var(--text-muted);font-weight:400">(<?= (int)$c['count'] ?>)</span></span>
+        <span style="flex:1;background:var(--bg);border-radius:4px;height:8px;overflow:hidden"><span style="display:block;height:100%;width:<?= $maxCat > 0 ? max(2, round($v / $maxCat * 100)) : 0 ?>%;background:<?= $isInCat ? 'var(--green)' : 'var(--red)' ?>"></span></span>
+        <span style="width:110px;text-align:right;font-weight:700"><?= $sym . number_format($v, 2) ?></span>
+    </div>
+    <?php endforeach; ?>
+</div>
+<?php endif; ?>
 
 <!-- Month navigator -->
 <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">
@@ -69,7 +120,7 @@ function catMeta(string $cat): array {
     </a>
     <div style="text-align:center;min-width:140px">
         <div style="font-weight:600;font-size:14px"><?= date('F Y', strtotime($month.'-01')) ?></div>
-        <div style="font-size:11px;color:var(--text-muted)"><?= count($entries) ?> transactions</div>
+        <div style="font-size:11px;color:var(--text-muted)"><?= count($entries) ?> cash transactions</div>
     </div>
     <a href="?month=<?= $nextMonth ?>&type=<?= $typeFilter ?>"
        class="btn btn-secondary btn-sm <?= $isCurrent ? 'disabled' : '' ?>"
@@ -77,7 +128,7 @@ function catMeta(string $cat): array {
         <i class="fa-solid fa-chevron-right"></i>
     </a>
     <div style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap">
-        <?php foreach (['all'=>'All','in'=>'Income','out'=>'Expense'] as $k=>$lbl): ?>
+        <?php foreach (['all'=>'All','in'=>'Cash In','out'=>'Cash Out'] as $k=>$lbl): ?>
         <a href="?month=<?= $month ?>&type=<?= $k ?>"
            class="btn btn-sm <?= $typeFilter===$k ? 'btn-primary' : 'btn-secondary' ?>"><?= $lbl ?></a>
         <?php endforeach; ?>
@@ -103,7 +154,7 @@ function catMeta(string $cat): array {
 <div class="table-wrap">
     <div class="empty-state">
         <div class="empty-icon">📊</div>
-        <h3>No transactions this month</h3>
+        <h3>No cash movement this month</h3>
         <p>Nothing recorded for <?= date('F Y', strtotime($month.'-01')) ?>.</p>
     </div>
 </div>
@@ -140,7 +191,7 @@ function catMeta(string $cat): array {
                 </span>
             </td>
             <td style="font-size:13px">
-                <div style="font-weight:500"><?= e($e['invoice_no'] ?? '—') ?></div>
+                <div style="font-weight:500"><?= e($e['ref'] ?? '—') ?></div>
             </td>
             <td class="td-muted"><?= e($e['party'] ?? '—') ?></td>
             <td style="text-align:right;font-weight:700;color:var(--green)">
@@ -155,7 +206,7 @@ function catMeta(string $cat): array {
         <tfoot>
             <tr style="background:var(--bg);border-top:2px solid var(--border)">
                 <td colspan="4" style="padding:10px 14px;font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted)">
-                    Month Total
+                    Month Cash Total
                 </td>
                 <td style="padding:10px 14px;text-align:right;font-weight:800;font-size:15px;color:var(--green)">
                     <?= $sym . number_format($totalIn, 2) ?>

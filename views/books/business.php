@@ -24,125 +24,17 @@ $sym = $defaultCur['symbol'] ?? '৳';
 $monthStart = date('Y-m-01');
 $monthEnd   = date('Y-m-t');
 
-// ── Financial totals (current month) ──────────────────────────────────────
-// TOTAL IN = funds(in) + debts taken(=money received) + sales(paid) + purchase returns refunded
-// TOTAL OUT = funds(out) + expenses + purchases(paid) + sales returns refunded
-// AVAILABLE = Total In - Total Out
-// TOTAL DUES = outstanding in dues table (what customers owe) + sales invoice outstanding
-// TOTAL DEBTS = outstanding in debts table (what we owe) + purchase invoice outstanding
-
-$totalIn  = 0.0;
-$totalOut = 0.0;
-$totalDues  = 0.0;
-$totalDebts = 0.0;
-
-// Funds IN (current month)
-try {
-    $r = \App\Helpers\Database::row(
-        "SELECT COALESCE(SUM(amount),0) AS n FROM funds WHERE book_id=? AND type='in' AND fund_date BETWEEN ? AND ?",
-        [$bookId, $monthStart, $monthEnd]
-    );
-    $totalIn += (float)($r['n'] ?? 0);
-} catch (\Throwable $e) {}
-
-// Debts created this month = cash received as loans
-try {
-    $r = \App\Helpers\Database::row(
-        "SELECT COALESCE(SUM(amount),0) AS n FROM debts WHERE book_id=? AND created_at BETWEEN ? AND ?",
-        [$bookId, $monthStart . ' 00:00:00', $monthEnd . ' 23:59:59']
-    );
-    $totalIn += (float)($r['n'] ?? 0);
-} catch (\Throwable $e) {}
-
-// Sales paid this month
-try {
-    $r = \App\Helpers\Database::row(
-        "SELECT COALESCE(SUM(paid),0) AS n FROM invoices WHERE book_id=? AND type='sale' AND deleted_at IS NULL AND date BETWEEN ? AND ?",
-        [$bookId, $monthStart, $monthEnd]
-    );
-    $totalIn += (float)($r['n'] ?? 0);
-} catch (\Throwable $e) {}
-
-// Purchase returns refunded this month
-try {
-    $r = \App\Helpers\Database::row(
-        "SELECT COALESCE(SUM(total_refund),0) AS n FROM returns WHERE book_id=? AND type='purchase_return' AND deleted_at IS NULL AND date BETWEEN ? AND ?",
-        [$bookId, $monthStart, $monthEnd]
-    );
-    $totalIn += (float)($r['n'] ?? 0);
-} catch (\Throwable $e) {}
-
-// Funds OUT (current month)
-try {
-    $r = \App\Helpers\Database::row(
-        "SELECT COALESCE(SUM(amount),0) AS n FROM funds WHERE book_id=? AND type='out' AND fund_date BETWEEN ? AND ?",
-        [$bookId, $monthStart, $monthEnd]
-    );
-    $totalOut += (float)($r['n'] ?? 0);
-} catch (\Throwable $e) {}
-
-// Expenses (current month)
-try {
-    $r = \App\Helpers\Database::row(
-        "SELECT COALESCE(SUM(amount),0) AS n FROM expenses WHERE book_id=? AND expense_date BETWEEN ? AND ?",
-        [$bookId, $monthStart, $monthEnd]
-    );
-    $totalOut += (float)($r['n'] ?? 0);
-} catch (\Throwable $e) {}
-
-// Purchases paid this month
-try {
-    $r = \App\Helpers\Database::row(
-        "SELECT COALESCE(SUM(paid),0) AS n FROM invoices WHERE book_id=? AND type='purchase' AND deleted_at IS NULL AND date BETWEEN ? AND ?",
-        [$bookId, $monthStart, $monthEnd]
-    );
-    $totalOut += (float)($r['n'] ?? 0);
-} catch (\Throwable $e) {}
-
-// Sales returns refunded this month
-try {
-    $r = \App\Helpers\Database::row(
-        "SELECT COALESCE(SUM(total_refund),0) AS n FROM returns WHERE book_id=? AND type='sales_return' AND deleted_at IS NULL AND date BETWEEN ? AND ?",
-        [$bookId, $monthStart, $monthEnd]
-    );
-    $totalOut += (float)($r['n'] ?? 0);
-} catch (\Throwable $e) {}
-
-$availableFunds = $totalIn - $totalOut;
-
-// TOTAL DUES: dues table outstanding + sales invoices outstanding (cumulative)
-try {
-    $r = \App\Helpers\Database::row(
-        "SELECT COALESCE(SUM(amount - paid_amount),0) AS n FROM dues WHERE book_id=? AND status IN ('unpaid','partial')",
-        [$bookId]
-    );
-    $totalDues += (float)($r['n'] ?? 0);
-} catch (\Throwable $e) {}
-
-try {
-    $r = \App\Helpers\Database::row(
-        "SELECT COALESCE(SUM(total - paid),0) AS n FROM invoices WHERE book_id=? AND type='sale' AND status NOT IN ('paid','cancelled') AND deleted_at IS NULL",
-        [$bookId]
-    );
-    $totalDues += (float)($r['n'] ?? 0);
-} catch (\Throwable $e) {}
-
-// TOTAL DEBTS: debts table outstanding + purchase invoices outstanding (cumulative)
-try {
-    $r = \App\Helpers\Database::row(
-        "SELECT COALESCE(SUM(amount - paid_amount),0) AS n FROM debts WHERE book_id=? AND status IN ('unpaid','partial')",
-        [$bookId]
-    );
-    $totalDebts += (float)($r['n'] ?? 0);
-} catch (\Throwable $e) {}
-
-try {
-    $r = \App\Helpers\Database::row(
-        "SELECT COALESCE(SUM(total - paid),0) AS n FROM invoices WHERE book_id=? AND type='purchase' AND status NOT IN ('paid','cancelled') AND deleted_at IS NULL",
-        [$bookId]
-    );
-    $totalDebts += (float)($r['n'] ?? 0);
-} catch (\Throwable $e) {}
+// ── Financial totals — all from ReportService so this page, Reports and the book list always agree ──
+// Total In / Total Out  = cash that moved THIS MONTH (payments received/made, expenses, funds, cash refunds)
+// Available Funds       = cash balance, all time
+// Total Dues / Debts    = what is still owed to / by the business today (invoice balances + stand-alone dues/debts)
+$monthCash      = \App\Services\ReportService::cash((int)$bookId, $monthStart, $monthEnd);
+$totalIn        = $monthCash['in'];
+$totalOut       = $monthCash['out'];
+$availableFunds = \App\Services\ReportService::balance((int)$bookId)['net'];
+$position       = \App\Services\ReportService::position((int)$bookId);
+$totalDues      = $position['receivable'];
+$totalDebts     = $position['payable'];
 
 // ── Recent Activity from activity_log table ───────────────────────────────
 $recentActivity = \App\Services\ActivityLogger::recent($bookId, 20);
@@ -229,7 +121,7 @@ unset($act);
         <div style="min-width:0;flex:1">
             <div class="stat-label">Total In</div>
             <div class="stat-value green"><?= format_money($totalIn, $sym) ?></div>
-            <div style="font-size:10px;color:var(--text-muted);margin-top:2px">Funds + Loans + Sales + P.Returns</div>
+            <div style="font-size:10px;color:var(--text-muted);margin-top:2px">Cash received this month</div>
         </div>
     </a>
     <?php endif; // funds.view ?>
@@ -243,7 +135,7 @@ unset($act);
         <div style="min-width:0;flex:1">
             <div class="stat-label">Total Out</div>
             <div class="stat-value red"><?= format_money($totalOut, $sym) ?></div>
-            <div style="font-size:10px;color:var(--text-muted);margin-top:2px">Expenses + Purchases + S.Returns</div>
+            <div style="font-size:10px;color:var(--text-muted);margin-top:2px">Cash paid out this month</div>
         </div>
     </a>
     <?php endif; // expenses.view ?>
@@ -257,7 +149,7 @@ unset($act);
         <div style="min-width:0;flex:1">
             <div class="stat-label">Total Dues</div>
             <div class="stat-value amber"><?= format_money($totalDues, $sym) ?></div>
-            <div style="font-size:10px;color:var(--text-muted);margin-top:2px">Dues + Sales outstanding</div>
+            <div style="font-size:10px;color:var(--text-muted);margin-top:2px">Customers owe you, today</div>
         </div>
     </a>
     <?php endif; // dues.view ?>
@@ -271,7 +163,7 @@ unset($act);
         <div style="min-width:0;flex:1">
             <div class="stat-label">Total Debts</div>
             <div class="stat-value red"><?= format_money($totalDebts, $sym) ?></div>
-            <div style="font-size:10px;color:var(--text-muted);margin-top:2px">Debts + Purchase outstanding</div>
+            <div style="font-size:10px;color:var(--text-muted);margin-top:2px">You owe, today</div>
         </div>
     </a>
     <?php endif; // debts.view ?>

@@ -621,6 +621,7 @@ tbody td { padding: 10px 14px; font-size: 13.5px; vertical-align: middle; }
 .badge-red   { background: var(--red-bg);   color: var(--red); }
 .badge-amber { background: var(--amber-bg); color: var(--amber); }
 .badge-blue  { background: var(--blue-bg);  color: var(--blue); }
+.badge-indigo { background: rgba(99,102,241,.12); color: #6366f1; }
 .badge-gray  { background: var(--bg);       color: var(--text-muted); border:1px solid var(--border); }
 
 /* ============================================================
@@ -881,22 +882,6 @@ a.activity-link:hover { background: var(--hover-clr, var(--bg)); }
     z-index: 100;
 }
 .mobile-title { font-weight: 600; font-size: 15px; }
-
-.hamburger {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 4px;
-}
-.hamburger span {
-    display: block;
-    width: 20px; height: 2px;
-    background: var(--text);
-    border-radius: 2px;
-}
 
 .sidebar-overlay {
     display: none;

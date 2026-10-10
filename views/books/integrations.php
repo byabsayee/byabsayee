@@ -16,7 +16,7 @@ ob_start();
 .int-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.int-row form{margin:0}
 .int-code{font-family:ui-monospace,Menlo,monospace;background:var(--bg-subtle,#f3f4f6);border:1px solid var(--border,#e5e7eb);border-radius:8px;padding:8px 10px;word-break:break-all;font-size:.85rem;display:block}
 .int-table{width:100%;border-collapse:collapse;font-size:.86rem}.int-table th,.int-table td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--border,#e5e7eb);vertical-align:top}
-.int-warn{background:#fffbeb;border:1px solid #fcd34d;color:#92400e;border-radius:10px;padding:12px 14px;margin-bottom:16px;font-size:.9rem}
+.int-warn{background:var(--amber-bg);border:1px solid var(--amber);color:var(--amber);border-radius:10px;padding:12px 14px;margin-bottom:16px;font-size:.9rem}
 .int-form label{display:block;font-weight:600;margin:12px 0 4px}.int-form input[type=text],.int-form input[type=number],.int-form input[type=url]{width:100%;max-width:460px}
 .int-opt{display:flex;gap:8px;align-items:flex-start;font-weight:400!important;margin:6px 0!important}.int-opt small{display:block;color:var(--text-muted,#6b7280)}
 .int-two{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
@@ -32,7 +32,7 @@ ob_start();
 <?php if ($weakKey): ?><div class="int-warn"><b>Set a secret key first.</b> The server has no <code>INTEGRATION_SECRET_KEY</code> (or a real <code>APP_KEY</code>), so stored connection secrets would be protected by a well-known default. Add one to your <code>.env</code> before connecting a website, and never change it afterwards (changing it means re-pairing).</div><?php endif; ?>
 
 <?php if (!empty($creds)): ?>
-<div class="int-card" style="border-color:#15803d">
+<div class="int-card" style="border-color:var(--green)">
   <h2>Your connection code</h2>
   <p class="sub">Copy this code and paste it into your website's admin (<b>Accounting link</b>). That is all — the website and this book finish connecting by themselves. The code works once, expires in 30 minutes and is shown only now.</p>
   <?php if (!empty($creds['connection_code'])): ?>

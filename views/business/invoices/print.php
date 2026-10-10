@@ -363,6 +363,5 @@ function copyShareLink() {
 setTimeout(() => window.print(), 600);
 <?php endif; ?>
 </script>
-<?php include BASE_PATH . '/views/partials/dev-warning.php'; ?>
 </body>
 </html>

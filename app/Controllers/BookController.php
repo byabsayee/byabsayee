@@ -12,20 +12,7 @@ class BookController
         $search = trim($_GET['q'] ?? '');
 
         $books = Database::query(
-            'SELECT b.*,
-                CASE
-                    WHEN b.type = "personal" THEN
-                        COALESCE((SELECT SUM(e.amount) FROM entries e WHERE e.book_id=b.id AND e.type="in"  AND e.deleted_at IS NULL),0)
-                    ELSE
-                        COALESCE((SELECT SUM(i.total) FROM invoices i WHERE i.book_id=b.id AND i.type="sale"     AND i.status="paid" AND i.deleted_at IS NULL),0)
-                END AS total_in,
-                CASE
-                    WHEN b.type = "personal" THEN
-                        COALESCE((SELECT SUM(e.amount) FROM entries e WHERE e.book_id=b.id AND e.type="out" AND e.deleted_at IS NULL),0)
-                    ELSE
-                        COALESCE((SELECT SUM(i.total) FROM invoices i WHERE i.book_id=b.id AND i.type="purchase" AND i.status="paid" AND i.deleted_at IS NULL),0)
-                END AS total_out,
-                (b.user_id = ?) AS is_owner
+            'SELECT b.*, (b.user_id = ?) AS is_owner
              FROM books b
              WHERE b.deleted_at IS NULL
                AND (
@@ -38,6 +25,13 @@ class BookController
              ORDER BY is_owner DESC, b.created_at DESC',
             [$userId, $userId, $userId]
         );
+        // total_in / total_out come from ReportService so the list shows the same cash figures as Reports
+        foreach ($books as &$bk) {
+            $t = \App\Services\ReportService::bookTotals($bk);
+            $bk['total_in']  = $t['in'];
+            $bk['total_out'] = $t['out'];
+        }
+        unset($bk);
 
         // Apply search filter
         if ($search !== '') {
@@ -274,7 +268,7 @@ class BookController
             $canDelete = !empty($perms['book_settings']['delete']);
 
             if (!$canDelete) {
-                redirect('/books/'.$book['id'].'/settings', ['error' => 'Only the book owner or an employee with delete permission can delete this book.']);
+                redirect('/books/'.$book['id'], ['error' => 'Only the book owner or an employee with delete permission can delete this book.']);
             }
         }
 
@@ -293,16 +287,17 @@ class BookController
 
     private function saveCurrencies(int $bookId, array $currencyData): void
     {
-        if (empty($currencyData)) return;
+        $currencyData = array_filter((array)$currencyData, fn($c) => is_array($c) && trim($c['code'] ?? '') !== '' && trim($c['symbol'] ?? '') !== '');
+        if (empty($currencyData)) return;     // nothing valid posted: keep what the book already has
         Database::run('DELETE FROM book_currencies WHERE book_id=?', [$bookId]);
         $defaultSet = false;
         foreach ($currencyData as $i => $c) {
             $code    = strtoupper(trim($c['code']   ?? ''));
             $symbol  = trim($c['symbol']             ?? '');
             $cname   = trim($c['name']               ?? '');
+            if (!$code || !$symbol) continue;
             $isDefault = isset($c['is_default']) && !$defaultSet ? 1 : 0;
             if ($isDefault) $defaultSet = true;
-            if (!$code || !$symbol) continue;
             Database::run(
                 'INSERT INTO book_currencies (book_id,code,symbol,name,is_default,sort_order) VALUES (?,?,?,?,?,?)',
                 [$bookId,$code,$symbol,$cname ?: $code,$isDefault,$i]
@@ -345,9 +340,9 @@ class BookController
         try {
             $invCounts = Database::row(
                 'SELECT
-                    SUM(CASE WHEN type="sale"     AND deleted_at IS NULL THEN 1 ELSE 0 END) AS sales,
-                    SUM(CASE WHEN type="purchase" AND deleted_at IS NULL THEN 1 ELSE 0 END) AS purchases
-                 FROM invoices WHERE book_id=?', [$bid]
+                    SUM(CASE WHEN type IN ("sale","pos") THEN 1 ELSE 0 END) AS sales,
+                    SUM(CASE WHEN type="purchase" THEN 1 ELSE 0 END) AS purchases
+                 FROM invoices WHERE book_id=? AND deleted_at IS NULL AND status<>"cancelled"', [$bid]
             );
             $salesCount     = (int)($invCounts['sales']     ?? 0);
             $purchasesCount = (int)($invCounts['purchases'] ?? 0);
@@ -364,7 +359,7 @@ class BookController
         } catch (\Throwable $e) {}
 
         try {
-            $couRow = Database::row('SELECT COUNT(*) AS n FROM coupons WHERE book_id=? AND deleted_at IS NULL', [$bid]);
+            $couRow = Database::row('SELECT COUNT(*) AS n FROM coupons WHERE book_id=?', [$bid]);
             $couponsCount = (int)($couRow['n'] ?? 0);
         } catch (\Throwable $e) {}
 
@@ -388,8 +383,8 @@ class BookController
                     (SELECT COUNT(*) FROM customers WHERE book_id=? AND deleted_at IS NULL) AS customers,
                     (SELECT COUNT(*) FROM suppliers WHERE book_id=? AND deleted_at IS NULL) AS suppliers,
                     (SELECT COUNT(*) FROM products  WHERE book_id=? AND deleted_at IS NULL) AS products,
-                    (SELECT COALESCE(SUM(paid),0) FROM invoices WHERE book_id=? AND type="sale"     AND deleted_at IS NULL) AS total_sales,
-                    (SELECT COALESCE(SUM(paid),0) FROM invoices WHERE book_id=? AND type="purchase" AND deleted_at IS NULL) AS total_purchases',
+                    (SELECT COALESCE(SUM(total),0) FROM invoices WHERE book_id=? AND type IN ("sale","pos") AND status<>"cancelled" AND deleted_at IS NULL) AS total_sales,
+                    (SELECT COALESCE(SUM(total),0) FROM invoices WHERE book_id=? AND type="purchase" AND status<>"cancelled" AND deleted_at IS NULL) AS total_purchases',
                 array_fill(0,5,$bid)
             );
             $stats = array_merge($stats, $baseStats ?? []);
@@ -413,6 +408,10 @@ class BookController
         $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
         if (!in_array($ext,['jpg','jpeg','png','webp','svg'])) return null;
         if ($file['size'] > 2*1024*1024) return null;
+        if ($ext === 'svg') {
+            $svg = (string)@file_get_contents($file['tmp_name']);
+            if (preg_match('/<\s*script|<\s*foreignObject|\son[a-z]+\s*=|javascript:|<\s*iframe|<\s*embed|<!ENTITY|href\s*=\s*["\']\s*(?!#)[a-z]+:/i', $svg)) return null;
+        }
 
         $uploadPath = config('upload.path');
         $dir = $uploadPath . '/logos';

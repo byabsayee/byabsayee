@@ -130,11 +130,11 @@ ob_start();
             </td>
             <td>
                 <?php if ($c['discount_type'] === 'percent'): ?>
-                <span style="background:#fff8e1;color:#b45309;padding:3px 10px;border-radius:99px;font-size:12px;font-weight:700">
+                <span style="background:var(--amber-bg);color:var(--amber);padding:3px 10px;border-radius:99px;font-size:12px;font-weight:700">
                     <i class="fa-solid fa-percent"></i> <?= (float)$c['discount_value'] ?>% off
                 </span>
                 <?php else: ?>
-                <span style="background:#f0fdf4;color:var(--green);padding:3px 10px;border-radius:99px;font-size:12px;font-weight:700">
+                <span style="background:var(--green-bg);color:var(--green);padding:3px 10px;border-radius:99px;font-size:12px;font-weight:700">
                     <i class="fa-solid fa-minus"></i> <?= format_money((float)$c['discount_value']) ?> off
                 </span>
                 <?php endif; ?>
@@ -145,7 +145,7 @@ ob_start();
                 <?php elseif ($expired): ?>
                     <span style="color:var(--red);font-weight:600"><i class="fa-solid fa-clock"></i> Expired <?= fmt_date($c['expires_at']) ?></span>
                 <?php elseif ($expiring): ?>
-                    <span style="color:#b45309;font-weight:600"><i class="fa-solid fa-triangle-exclamation"></i> <?= fmt_date($c['expires_at']) ?></span>
+                    <span style="color:var(--amber);font-weight:600"><i class="fa-solid fa-triangle-exclamation"></i> <?= fmt_date($c['expires_at']) ?></span>
                 <?php else: ?>
                     <span><?= fmt_date($c['expires_at']) ?></span>
                     <div style="font-size:11px;color:var(--text-muted)"><?= date('h:i A', strtotime($c['expires_at'])) ?></div>
@@ -153,7 +153,7 @@ ob_start();
             </td>
             <td>
                 <?php if ($expired): ?>
-                <span class="badge" style="background:#fee2e2;color:#dc2626"><i class="fa-solid fa-circle" style="font-size:7px"></i> Expired</span>
+                <span class="badge" style="background:var(--red-bg);color:var(--red)"><i class="fa-solid fa-circle" style="font-size:7px"></i> Expired</span>
                 <?php elseif ($c['is_active']): ?>
                 <span class="badge badge-green"><i class="fa-solid fa-circle" style="font-size:7px"></i> Active</span>
                 <?php else: ?>
@@ -352,7 +352,6 @@ ob_start();
 </div>
 
 <style>
-.badge-gray { background:#f3f4f6; color:#6b7280; }
 </style>
 
 <script>

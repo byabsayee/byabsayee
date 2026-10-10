@@ -34,7 +34,7 @@ class EmployeeController
             'suppliers'           => ['view', 'create', 'edit', 'delete'],
             'contacts'            => ['view', 'create', 'edit', 'delete'],
             // ── People ────────────────────────────────────────────────
-            'employees'           => ['view', 'create', 'edit', 'delete', 'invite', 'manage_designations'],
+            'employees'           => ['view', 'create', 'edit', 'delete', 'invite', 'manage_designations', 'pay_salary'],
             // ── Reporting & Admin ──────────────────────────────────────
             'reports'             => ['view'],
             'logs'                => ['view'],
@@ -111,6 +111,7 @@ class EmployeeController
     {
         if (guest()) redirect('/login');
         $book     = $this->getBookOrFail($params['id']);
+        if (!book_can($book, 'employees', 'view')) abort_403();
         $employee = $this->getEmployeeOrFail($params['employee_id'], $book['id']);
 
         $member = null;
@@ -193,7 +194,7 @@ class EmployeeController
                 trim($_POST['email']       ?? '') ?: null,
                 trim($_POST['address']     ?? '') ?: null,
                 trim($_POST['department']  ?? '') ?: null,
-                trim($_POST['join_date']   ?? '') ?: null,
+                valid_date($_POST['join_date'] ?? null),
                 trim($_POST['salary']      ?? '') ?: null,
                 $_POST['salary_type'] ?? 'monthly',
                 trim($_POST['notes']       ?? '') ?: null,
@@ -249,7 +250,7 @@ class EmployeeController
                 trim($_POST['email']       ?? '') ?: null,
                 trim($_POST['address']     ?? '') ?: null,
                 trim($_POST['department']  ?? '') ?: null,
-                trim($_POST['join_date']   ?? '') ?: null,
+                valid_date($_POST['join_date'] ?? null),
                 trim($_POST['salary']      ?? '') ?: null,
                 $_POST['salary_type'] ?? 'monthly',
                 trim($_POST['notes']       ?? '') ?: null,
@@ -270,12 +271,29 @@ class EmployeeController
         if (guest()) redirect('/login');
         csrf_verify();
         $book     = $this->getBookOrFail($params['id']);
+        if (!book_can($book, 'employees', 'delete')) abort_403();
         $employee = $this->getEmployeeOrFail($params['employee_id'], $book['id']);
 
-        Database::run('UPDATE employees SET deleted_at=? WHERE id=? AND book_id=?', [now(), $employee['id'], $book['id']]);
+        if (!empty($employee['user_id']) && (int)$employee['user_id'] === (int)$book['user_id']) {
+            redirect('/books/'.$book['id'].'/employees/'.$employee['id'], ['error' => 'The book owner cannot be removed.']);
+        }
+
+        // Removing an employee also removes their login access to this book (they used to keep it).
+        $pdo = Database::get();
+        $pdo->beginTransaction();
+        try {
+            Database::run('UPDATE employees SET deleted_at=? WHERE id=? AND book_id=?', [now(), $employee['id'], $book['id']]);
+            if (!empty($employee['user_id'])) {
+                Database::run('UPDATE book_members SET status="terminated" WHERE book_id=? AND user_id=?', [$book['id'], $employee['user_id']]);
+            }
+            $pdo->commit();
+        } catch (\Throwable $e) {
+            if ($pdo->inTransaction()) $pdo->rollBack();
+            throw $e;
+        }
         \App\Services\Integration\Hooks::emit((int)$book['id'], 'staff', (int)$employee['id'], 'archive');
 
-        redirect('/books/'.$book['id'].'/employees', ['success' => e($employee['name']).' removed.']);
+        redirect('/books/'.$book['id'].'/employees', ['success' => $employee['name'].' removed.']);
     }
 
     // =========================================================================
@@ -286,19 +304,44 @@ class EmployeeController
         if (guest()) redirect('/login');
         csrf_verify();
         $book     = $this->getBookOrFail($params['id']);
+        if (!book_can($book, 'employees', 'edit')) abort_403();
         $employee = $this->getEmployeeOrFail($params['employee_id'], $book['id']);
 
-        $permissions = $this->parsePermissionsFromPost();
+        $isOwner = (int)$book['user_id'] === (int)auth()['id'];
+        $back    = '/books/'.$book['id'].'/employees/'.$employee['id'];
 
-        // Update book_member if they have a login
-        if ($employee['user_id']) {
-            $member = Database::row('SELECT id FROM book_members WHERE book_id=? AND user_id=?', [$book['id'], $employee['user_id']]);
-            if ($member) {
-                Database::run('UPDATE book_members SET permissions=? WHERE id=?', [json_encode($permissions), $member['id']]);
+        if (!empty($employee['user_id']) && (int)$employee['user_id'] === (int)$book['user_id']) {
+            redirect($back, ['error' => 'The owner always has full access; their permissions cannot be changed.']);
+        }
+        if (!$isOwner) {
+            // Non-owners may not change their own access, nor hand out rights they do not hold themselves.
+            if (!empty($employee['user_id']) && (int)$employee['user_id'] === (int)auth()['id']) {
+                redirect($back, ['error' => 'You cannot change your own permissions.']);
             }
         }
 
-        redirect('/books/'.$book['id'].'/employees/'.$employee['id'], ['success' => 'Permissions updated.']);
+        $permissions = $this->parsePermissionsFromPost();
+
+        if (!$isOwner) {
+            foreach ($permissions as $mod => $actions) {
+                foreach ((array)$actions as $action => $on) {
+                    if ($on && !book_can($book, (string)$mod, (string)$action)) {
+                        redirect($back, ['error' => 'You cannot grant a permission you do not have yourself ('.$mod.' → '.$action.').']);
+                    }
+                }
+            }
+        }
+
+        // Permissions live on the login (book_members); an employee without one has nothing to update.
+        $member = $employee['user_id']
+            ? Database::row('SELECT id FROM book_members WHERE book_id=? AND user_id=?', [$book['id'], $employee['user_id']])
+            : null;
+        if (!$member) {
+            redirect($back, ['error' => 'This employee has no login for this book yet — send an invitation first, then set permissions.']);
+        }
+        Database::run('UPDATE book_members SET permissions=? WHERE id=?', [json_encode($permissions), $member['id']]);
+
+        redirect($back, ['success' => 'Permissions updated.']);
     }
 
     // =========================================================================
@@ -402,6 +445,7 @@ class EmployeeController
         if (guest()) redirect('/login');
         csrf_verify();
         $book = $this->getBookOrFail($params['id']);
+        if (!book_can($book, 'employees', 'invite')) abort_403();
 
         Database::run(
             'UPDATE employee_invitations SET status="expired" WHERE id=? AND book_id=?',
@@ -599,6 +643,7 @@ class EmployeeController
     {
         if (guest()) { echo '{}'; exit; }
         $book  = $this->getBookOrFail($params['id']);
+        if (!book_can($book, 'employees', 'view')) { echo '{}'; exit; }
         $desig = Database::row('SELECT permissions FROM designations WHERE id=? AND book_id=?', [$params['desig_id'], $book['id']]);
         header('Content-Type: application/json');
         echo $desig ? $desig['permissions'] : '{}';
@@ -731,6 +776,7 @@ class EmployeeController
         if (guest()) redirect('/login');
         csrf_verify();
         $book     = $this->getBookOrFail($params['id']);
+        if (!book_can($book, 'employees', 'pay_salary')) abort_403();
         $employee = $this->getEmployeeOrFail($params['employee_id'], $book['id']);
 
         $amount  = (float)($_POST['amount'] ?? 0);
@@ -744,57 +790,58 @@ class EmployeeController
             redirect('/books/'.$book['id'].'/employees/'.$employee['id'], ['error' => 'Amount must be greater than zero.']);
         }
 
-        // Auto-create expense (fix: use correct column names expense_date, category_id)
-        $expenseId = null;
-        try {
-            $expenseTitle = 'Salary — ' . $employee['name']
-                . ($period ? ' (' . $period . ')' : '');
-
-            // Find or create Salary category
-            $salaryCat = Database::row(
-                'SELECT id FROM expense_categories WHERE book_id=? AND name="Salary" LIMIT 1',
-                [$book['id']]
-            );
-            if (!$salaryCat) {
-                Database::run(
-                    'INSERT INTO expense_categories (book_id, name, icon) VALUES (?,?,?)',
-                    [$book['id'], 'Salary', 'fa-money-bill-wave']
-                );
-                $catId = Database::lastId();
-            } else {
-                $catId = $salaryCat['id'];
-            }
+        // One salary payment = ONE record that owns ONE expense (linked, so reports count it once and edits/deletes stay in step).
+        $date = date('Y-m-d');
+        Database::transaction(function () use ($book, $employee, $amount, $period, $note, $method, $from, $to, $date) {
+            $cat = Database::row('SELECT id FROM expense_categories WHERE book_id=? AND name="Salary" LIMIT 1', [$book['id']]);
+            if (!$cat) {
+                Database::run('INSERT INTO expense_categories (book_id, name, icon, is_active) VALUES (?,?,?,1)', [$book['id'], 'Salary', 'fa-users']);
+                $catId = (int)Database::lastId();
+            } else $catId = (int)$cat['id'];
 
             Database::run(
-                'INSERT INTO expenses (book_id, category_id, title, amount, expense_date, paid_to, note, created_by, created_at)
-                 VALUES (?,?,?,?,?,?,?,?,?)',
-                [
-                    $book['id'], $catId, $expenseTitle, $amount,
-                    date('Y-m-d'), $employee['name'], $note ?: null,
-                    auth()['id'], now()
-                ]
+                'INSERT INTO employee_salary_payments
+                 (book_id, employee_id, expense_id, amount, period_label, period_from, period_to, payment_method, note, created_by, created_at)
+                 VALUES (?,?,NULL,?,?,?,?,?,?,?,?)',
+                [$book['id'], $employee['id'], $amount, $period ?: null, $from, $to, $method, $note ?: null, auth()['id'], now()]
             );
-            $expenseId = Database::lastId();
-        } catch (\Throwable $e) {
-            error_log('[Salary] Expense creation failed: ' . $e->getMessage());
-        }
+            $payId = (int)Database::lastId();
+            $expId = \App\Services\LedgerService::syncOwnedExpense((int)$book['id'], 'employee_salary_payments', $payId, $amount,
+                'Salary — ' . $employee['name'] . ($period ? ' (' . $period . ')' : ''), $date, $note ?: null, auth()['id'], $catId, $employee['name']);
+            Database::run('UPDATE employee_salary_payments SET expense_id=? WHERE id=?', [$expId, $payId]);
+        });
 
-        // Record salary payment
-        Database::run(
-            'INSERT INTO employee_salary_payments
-             (book_id, employee_id, expense_id, amount, period_label, period_from, period_to, payment_method, note, created_by, created_at)
-             VALUES (?,?,?,?,?,?,?,?,?,?,?)',
-            [
-                $book['id'], $employee['id'], $expenseId,
-                $amount, $period ?: null, $from, $to,
-                $method, $note ?: null, auth()['id'], now()
-            ]
-        );
+        \App\Services\ActivityLogger::write($book['id'], auth()['id'], 'employee.salary_paid', 'Employee', (int)$employee['id'],
+            'Salary paid — ' . $employee['name'] . ' — ' . $amount, null, ['amount' => $amount, 'period' => $period]);
 
         redirect(
             '/books/'.$book['id'].'/employees/'.$employee['id'],
             ['success' => 'Salary of '.format_money($amount).' paid to '.e($employee['name']).'.']
         );
+    }
+
+    // =========================================================================
+    // DELETE A SALARY PAYMENT  →  POST /books/{id}/employees/{employee_id}/salary/{payment_id}/delete
+    // =========================================================================
+    public function deleteSalaryPayment(array $params): void
+    {
+        if (guest()) redirect('/login');
+        csrf_verify();
+        $book     = $this->getBookOrFail($params['id']);
+        if (!book_can($book, 'employees', 'pay_salary')) abort_403();
+        $employee = $this->getEmployeeOrFail($params['employee_id'], $book['id']);
+        $pay = Database::row('SELECT * FROM employee_salary_payments WHERE id=? AND employee_id=? AND book_id=?', [$params['payment_id'], $employee['id'], $book['id']]);
+        $url = '/books/'.$book['id'].'/employees/'.$employee['id'];
+        if (!$pay) redirect($url, ['error' => 'That payment no longer exists.']);
+
+        Database::transaction(function () use ($pay, $book) {
+            \App\Services\LedgerService::dropOwnedExpenses((int)$book['id'], 'employee_salary_payments', (int)$pay['id']);
+            if (!empty($pay['expense_id'])) Database::run('DELETE FROM expenses WHERE id=? AND book_id=?', [$pay['expense_id'], $book['id']]);   // pre-link rows
+            Database::run('DELETE FROM employee_salary_payments WHERE id=?', [$pay['id']]);
+        });
+        \App\Services\ActivityLogger::write($book['id'], auth()['id'], 'employee.salary_deleted', 'Employee', (int)$employee['id'],
+            'Salary payment deleted — ' . $employee['name'] . ' — ' . $pay['amount'], ['amount' => $pay['amount']]);
+        redirect($url, ['success' => 'Salary payment removed, along with its expense.']);
     }
 
     // =========================================================================
@@ -805,6 +852,7 @@ class EmployeeController
         if (guest()) redirect('/login');
         csrf_verify();
         $book     = $this->getBookOrFail($params['id']);
+        if (!book_can($book, 'employees', 'invite')) abort_403();
         $employee = $this->getEmployeeOrFail($params['employee_id'], $book['id']);
 
         $email = strtolower(trim($_POST['email'] ?? $employee['email'] ?? ''));

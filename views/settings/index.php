@@ -27,57 +27,12 @@ $notifAppUpdates       = $notifPrefs['app_updates']       ?? 1;
 ob_start();
 ?>
 <style>
-.settings-wrap { display:flex; gap:24px; align-items:flex-start; }
-.settings-nav  { width:220px; flex-shrink:0; background:var(--card-bg); border:1px solid var(--border); border-radius:12px; overflow:hidden; }
-.settings-nav a { display:flex; align-items:center; gap:10px; padding:12px 16px; color:var(--text); text-decoration:none; font-size:14px; font-weight:500; border-bottom:1px solid var(--border); transition:background .15s; }
-.settings-nav a:last-child { border-bottom:none; }
-.settings-nav a:hover { background:var(--hover-bg, rgba(0,0,0,.04)); }
-.settings-nav a.active { background:var(--brand-light, rgba(26,107,74,.08)); color:var(--brand); font-weight:600; }
-.settings-nav a i { width:18px; text-align:center; font-size:15px; }
-.settings-nav .nav-group-label { padding:10px 16px 4px; font-size:11px; font-weight:700; letter-spacing:.05em; color:var(--text-muted); text-transform:uppercase; }
-.settings-body { flex:1; min-width:0; }
-.settings-panel { background:var(--card-bg); border:1px solid var(--border); border-radius:12px; padding:28px; margin-bottom:20px; }
-.settings-panel h2 { font-size:18px; font-weight:700; margin:0 0 4px; color:var(--text); }
-.settings-panel .panel-desc { font-size:13px; color:var(--text-muted); margin:0 0 22px; }
-.settings-panel hr { border:none; border-top:1px solid var(--border); margin:20px 0; }
-.form-row { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
-.form-group { margin-bottom:16px; }
-.form-group label { display:block; font-size:13px; font-weight:600; color:var(--text); margin-bottom:6px; }
-.form-group label .hint { font-weight:400; color:var(--text-muted); margin-left:6px; }
-.form-group input[type=text],.form-group input[type=email],.form-group input[type=password],.form-group input[type=url],.form-group select,.form-group textarea { width:100%; padding:9px 12px; border:1px solid var(--border); border-radius:8px; background:var(--input-bg,var(--bg)); color:var(--text); font-size:14px; box-sizing:border-box; transition:border-color .15s; }
-.form-group input:focus,.form-group select:focus,.form-group textarea:focus { outline:none; border-color:var(--brand); box-shadow:0 0 0 3px rgba(26,107,74,.12); }
-.form-group textarea { resize:vertical; min-height:80px; }
-.toggle-row { display:flex; align-items:center; justify-content:space-between; padding:12px 0; border-bottom:1px solid var(--border); }
-.toggle-row:last-child { border-bottom:none; }
-.toggle-row .toggle-info { flex:1; }
-.toggle-row .toggle-info strong { display:block; font-size:14px; font-weight:600; color:var(--text); }
-.toggle-row .toggle-info span  { font-size:12px; color:var(--text-muted); }
-.toggle-switch { position:relative; width:44px; height:24px; flex-shrink:0; }
-.toggle-switch input { opacity:0; width:0; height:0; position:absolute; }
-.toggle-slider { position:absolute; inset:0; background:#ccc; border-radius:24px; cursor:pointer; transition:.2s; }
-.toggle-slider:before { content:''; position:absolute; height:18px; width:18px; left:3px; bottom:3px; background:#fff; border-radius:50%; transition:.2s; }
-.toggle-switch input:checked + .toggle-slider { background:var(--brand); }
-.toggle-switch input:checked + .toggle-slider:before { transform:translateX(20px); }
-.danger-zone { border-color:#e53e3e !important; }
-.danger-zone h2 { color:#e53e3e; }
-.faq-item { border:1px solid var(--border); border-radius:8px; margin-bottom:8px; overflow:hidden; }
-.faq-q { padding:14px 16px; font-weight:600; font-size:14px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; color:var(--text); background:var(--card-bg); }
-.faq-q:hover { background:var(--hover-bg,rgba(0,0,0,.04)); }
-.faq-q i { font-size:12px; color:var(--text-muted); transition:transform .2s; }
-.faq-a { display:none; padding:12px 16px; font-size:13px; color:var(--text-muted); line-height:1.6; border-top:1px solid var(--border); background:var(--bg); }
-.faq-item.open .faq-a { display:block; }
-.faq-item.open .faq-q i { transform:rotate(180deg); }
-.info-card { display:flex; gap:12px; padding:14px; border:1px solid var(--border); border-radius:8px; margin-bottom:10px; align-items:flex-start; }
-.info-card i { font-size:18px; color:var(--brand); margin-top:2px; flex-shrink:0; }
-.info-card strong { display:block; font-size:14px; font-weight:600; color:var(--text); margin-bottom:2px; }
-.info-card span { font-size:13px; color:var(--text-muted); }
-.contact-form-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+/* page-specific: appearance swatches (everything else comes from settings.css) */
 .theme-swatches { display:flex; gap:10px; flex-wrap:wrap; margin-top:8px; }
 .theme-swatch { width:44px; height:44px; border-radius:10px; cursor:pointer; border:3px solid transparent; transition:all .15s; position:relative; }
 .theme-swatch.selected,.theme-swatch:hover { border-color:var(--brand); transform:scale(1.08); }
 .theme-swatch .swatch-check { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#fff; font-size:16px; opacity:0; }
 .theme-swatch.selected .swatch-check { opacity:1; }
-@media(max-width:760px) { .settings-wrap{flex-direction:column;} .settings-nav{width:100%;} .form-row,.contact-form-grid{grid-template-columns:1fr;} }
 </style>
 
 <div class="page-header">
@@ -88,20 +43,14 @@ ob_start();
     </div>
 </div>
 
-<?php if (!empty($_SESSION['flash_success'])): ?>
-<div class="alert alert-success" style="margin-bottom:16px"><i class="fa-solid fa-check-circle"></i> <?= e($_SESSION['flash_success']) ?></div>
-<?php unset($_SESSION['flash_success']); endif; ?>
-<?php if (!empty($_SESSION['flash_error'])): ?>
-<div class="alert alert-error" style="margin-bottom:16px"><i class="fa-solid fa-triangle-exclamation"></i> <?= e($_SESSION['flash_error']) ?></div>
-<?php unset($_SESSION['flash_error']); endif; ?>
 
-<div class="settings-wrap">
+<div class="st-wrap">
     <!-- Sidebar Nav -->
-    <nav class="settings-nav">        
-        <div class="nav-group-label">App</div>
+    <nav class="st-nav">        
+        <div class="st-nav-group">App</div>
         <a href="/settings?tab=preferences"  class="<?= $tab==='preferences'?'active':'' ?>"><i class="fa-solid fa-sliders"></i> Preferences</a>
         <a href="/settings?tab=notifications" class="<?= $tab==='notifications'?'active':'' ?>"><i class="fa-solid fa-bell"></i> Notifications</a>
-        <div class="nav-group-label">Support</div>
+        <div class="st-nav-group">Support</div>
         <a href="/settings?tab=about"        class="<?= $tab==='about'?'active':'' ?>"><i class="fa-solid fa-circle-info"></i> About</a>
         <a href="/settings?tab=faq"          class="<?= $tab==='faq'?'active':'' ?>"><i class="fa-solid fa-circle-question"></i> FAQ</a>
         <a href="/settings?tab=help"         class="<?= $tab==='help'?'active':'' ?>"><i class="fa-solid fa-life-ring"></i> Help</a>
@@ -109,17 +58,16 @@ ob_start();
     </nav>
 
     <!-- Content Panels -->
-    <div class="settings-body">
+    <div class="st-body">
 
     <?php if ($tab === 'preferences'): ?>
-    <div class="settings-panel">
-        <h2>Preferences</h2>
-        <p class="panel-desc">Customize how Byabsayee looks and behaves for you.</p>
+    <div class="st-panel">
+        <div class="st-head"><div><h2>Preferences</h2><p class="panel-desc">Customize how Byabsayee looks and behaves for you.</p></div></div>
         <form method="POST" action="/settings/preferences">
             <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
             <input type="hidden" name="theme" id="theme-input" value="<?= e($userTheme) ?>">
 
-            <div class="form-group" style="margin-bottom:24px">
+            <div class="fg" style="margin-bottom:24px">
                 <label>Appearance Mode</label>
                 <div class="theme-swatches">
                     <div class="theme-swatch" style="background:#f8f9fa;border:1px solid #dee2e6" onclick="setTheme('light')" id="sw-light" title="Light">
@@ -137,8 +85,8 @@ ob_start();
                 </div>
             </div>
             <hr>
-            <div class="form-row">
-                <div class="form-group">
+            <div class="fg-row">
+                <div class="fg">
                     <label>Interface Language</label>
                     <select name="language">
                         <option value="en" <?= $userLang==='en'?'selected':'' ?>>🇬🇧 English</option>
@@ -149,7 +97,7 @@ ob_start();
                     </select>
                     <p style="font-size:12px;color:var(--text-muted);margin:6px 0 0">Full localization of the interface is still in progress — this saves your preference for when it ships.</p>
                 </div>
-                <div class="form-group">
+                <div class="fg">
                     <label>Timezone</label>
                     <select name="timezone">
                         <?php
@@ -162,8 +110,8 @@ ob_start();
                     </select>
                 </div>
             </div>
-            <div class="form-row">
-                <div class="form-group">
+            <div class="fg-row">
+                <div class="fg">
                     <label>Date Format</label>
                     <select name="date_format">
                         <option value="d M Y"   <?= $userDateFmt==='d M Y'?'selected':'' ?>>15 Jan 2025</option>
@@ -173,7 +121,7 @@ ob_start();
                         <option value="d-m-Y"   <?= $userDateFmt==='d-m-Y'?'selected':'' ?>>15-01-2025</option>
                     </select>
                 </div>
-                <div class="form-group">
+                <div class="fg">
                     <label>Default Currency</label>
                     <select name="currency">
                         <option value="BDT" <?= $userCurrency==='BDT'?'selected':'' ?>>BDT — Bangladeshi Taka (৳)</option>
@@ -211,13 +159,12 @@ ob_start();
     </script>
 
     <?php elseif ($tab === 'notifications'): ?>
-    <div class="settings-panel">
-        <h2>Notification Preferences</h2>
-        <p class="panel-desc">Control what alerts and updates you receive.</p>
+    <div class="st-panel">
+        <div class="st-head"><div><h2>Notification Preferences</h2><p class="panel-desc">Control what alerts and updates you receive.</p></div></div>
         <form method="POST" action="/settings/notifications">
             <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
-            <div class="toggle-row">
-                <div class="toggle-info">
+            <div class="vis-row">
+                <div class="vis-info">
                     <strong>Email Notifications</strong>
                     <span>Receive activity summaries and alerts via email</span>
                 </div>
@@ -226,8 +173,8 @@ ob_start();
                     <span class="toggle-slider"></span>
                 </label>
             </div>
-            <div class="toggle-row">
-                <div class="toggle-info">
+            <div class="vis-row">
+                <div class="vis-info">
                     <strong>Invoice Payment Reminders</strong>
                     <span>Get notified when an invoice is due or overdue</span>
                 </div>
@@ -236,8 +183,8 @@ ob_start();
                     <span class="toggle-slider"></span>
                 </label>
             </div>
-            <div class="toggle-row">
-                <div class="toggle-info">
+            <div class="vis-row">
+                <div class="vis-info">
                     <strong>Low Stock Alerts</strong>
                     <span>Be alerted when product stock falls below threshold</span>
                 </div>
@@ -246,8 +193,8 @@ ob_start();
                     <span class="toggle-slider"></span>
                 </label>
             </div>
-            <div class="toggle-row">
-                <div class="toggle-info">
+            <div class="vis-row">
+                <div class="vis-info">
                     <strong>New Employee Joined</strong>
                     <span>Get notified when an employee accepts an invitation</span>
                 </div>
@@ -256,8 +203,8 @@ ob_start();
                     <span class="toggle-slider"></span>
                 </label>
             </div>
-            <div class="toggle-row">
-                <div class="toggle-info">
+            <div class="vis-row">
+                <div class="vis-info">
                     <strong>Monthly Summary Email</strong>
                     <span>Receive a monthly business summary in your inbox</span>
                 </div>
@@ -266,8 +213,8 @@ ob_start();
                     <span class="toggle-slider"></span>
                 </label>
             </div>
-            <div class="toggle-row">
-                <div class="toggle-info">
+            <div class="vis-row">
+                <div class="vis-info">
                     <strong>App Update Announcements</strong>
                     <span>Be the first to know about new features</span>
                 </div>
@@ -294,9 +241,8 @@ ob_start();
     }
     $appVersion = $buildInfo['version'] !== 'dev' ? $buildInfo['version'] : ($buildInfo['commit'] !== 'unknown' ? $buildInfo['commit'] : 'dev');
     ?>
-    <div class="settings-panel">
-        <h2>About Byabsayee</h2>
-        <p class="panel-desc">Business management software built for real businesses.</p>
+    <div class="st-panel">
+        <div class="st-head"><div><h2>About Byabsayee</h2><p class="panel-desc">Business management software built for real businesses.</p></div></div>
         <div style="display:flex;align-items:center;gap:20px;margin-bottom:20px">
             <img src="/assets/images/ByabsayeeLogo.png" alt="Byabsayee" style="height:64px;object-fit:contain" onerror="this.style.display='none'">
             <div>
@@ -306,7 +252,7 @@ ob_start();
             </div>
         </div>
         <hr>
-        <div class="form-row" style="margin-bottom:16px">
+        <div class="fg-row" style="margin-bottom:16px">
             <div>
                 <div style="font-size:12px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em">Version</div>
                 <div style="font-size:14px;font-weight:600;color:var(--text)">
@@ -349,9 +295,8 @@ ob_start();
     </div>
 
     <?php elseif ($tab === 'faq'): ?>
-    <div class="settings-panel">
-        <h2>Frequently Asked Questions</h2>
-        <p class="panel-desc">Quick answers to common questions about Byabsayee.</p>
+    <div class="st-panel">
+        <div class="st-head"><div><h2>Frequently Asked Questions</h2><p class="panel-desc">Quick answers to common questions about Byabsayee.</p></div></div>
 
         <?php $faqs = [
             ['q'=>'What is Byabsayee?','a'=>'Byabsayee is an all-in-one ERP and accounting platform designed for small and medium businesses. It helps you track invoices, manage inventory, monitor finances, and more — all in one place.'],
@@ -376,9 +321,8 @@ ob_start();
     </div>
 
     <?php elseif ($tab === 'help'): ?>
-    <div class="settings-panel">
-        <h2>Help &amp; Documentation</h2>
-        <p class="panel-desc">Get started quickly with guides and resources.</p>
+    <div class="st-panel">
+        <div class="st-head"><div><h2>Help &amp; Documentation</h2><p class="panel-desc">Get started quickly with guides and resources.</p></div></div>
         <?php $guides = [
             ['icon'=>'fa-rocket','title'=>'Getting Started','desc'=>'Learn the basics of setting up your first business book, adding products, and creating your first invoice.'],
             ['icon'=>'fa-file-invoice-dollar','title'=>'Invoicing Guide','desc'=>'Understand sales invoices, purchase bills, payment recording, and the invoice lifecycle from draft to paid.'],
@@ -403,10 +347,9 @@ ob_start();
     </div>
 
     <?php elseif ($tab === 'contact'): ?>
-    <div class="settings-panel">
-        <h2>Contact Us</h2>
-        <p class="panel-desc">Have a question or issue? Reach out to us and we'll get back to you.</p>
-        <div class="contact-form-grid" style="margin-bottom:20px">
+    <div class="st-panel">
+        <div class="st-head"><div><h2>Contact Us</h2><p class="panel-desc">Have a question or issue? Reach out to us and we'll get back to you.</p></div></div>
+        <div class="fg-row" style="margin-bottom:20px">
             <div class="info-card">
                 <i class="fa-solid fa-envelope"></i>
                 <div>
@@ -440,17 +383,17 @@ ob_start();
         <h3 style="font-size:15px;margin:0 0 14px">Send a Message</h3>
         <form method="POST" action="/settings/contact">
             <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
-            <div class="form-row">
-                <div class="form-group">
+            <div class="fg-row">
+                <div class="fg">
                     <label>Your Name</label>
                     <input type="text" name="name" value="<?= e($user['name'] ?? '') ?>" placeholder="Your name" required>
                 </div>
-                <div class="form-group">
+                <div class="fg">
                     <label>Your Email</label>
                     <input type="email" name="email" value="<?= e($user['email'] ?? '') ?>" placeholder="your@email.com" required>
                 </div>
             </div>
-            <div class="form-group">
+            <div class="fg">
                 <label>Subject</label>
                 <select name="subject" required>
                     <option value="General Question">General Question</option>
@@ -461,7 +404,7 @@ ob_start();
                     <option value="Other">Other</option>
                 </select>
             </div>
-            <div class="form-group">
+            <div class="fg">
                 <label>Message</label>
                 <textarea name="message" placeholder="Describe your question or issue in detail…" style="min-height:120px" required></textarea>
             </div>
@@ -473,9 +416,8 @@ ob_start();
 
 <!--
     <?php elseif ($tab === 'privacy'): ?>
-    <div class="settings-panel">
-        <h2>Privacy Policy</h2>
-        <p class="panel-desc">Last updated: <?= date('d F Y') ?></p>
+    <div class="st-panel">
+        <div class="st-head"><div><h2>Privacy Policy</h2><p class="panel-desc">Last updated: <?= date('d F Y') ?></p></div></div>
         <?php $sections = [
             ['title'=>'1. Data Collection','body'=>'We collect the information you provide directly when you register an account or use the application. This includes your name, email address, and business data you enter into the system.'],
             ['title'=>'2. How We Use Your Data','body'=>'Your data is used solely to provide the Byabsayee service. We do not sell, rent, or share your personal data with third parties for marketing purposes.'],
@@ -491,9 +433,8 @@ ob_start();
     </div>
 
     <?php elseif ($tab === 'terms'): ?>
-    <div class="settings-panel">
-        <h2>Terms of Service</h2>
-        <p class="panel-desc">Last updated: <?= date('d F Y') ?></p>
+    <div class="st-panel">
+        <div class="st-head"><div><h2>Terms of Service</h2><p class="panel-desc">Last updated: <?= date('d F Y') ?></p></div></div>
         <?php $terms = [
             ['title'=>'1. Acceptance','body'=>'By using Byabsayee, you agree to these Terms of Service. If you do not agree, please do not use the application.'],
             ['title'=>'2. Use of Service','body'=>'Byabsayee is provided for legitimate business management purposes only. You agree not to use it for illegal activities, fraud, or any purpose that violates applicable laws.'],
@@ -532,8 +473,8 @@ ob_start();
 -->
 
 
-    </div><!-- /.settings-body -->
-</div><!-- /.settings-wrap -->
+    </div><!-- /.st-body -->
+</div><!-- /.st-wrap -->
 
 <?php
 $content = ob_get_clean();

@@ -14,9 +14,6 @@ ob_start();
     </div>
 </div>
 
-<?php if (!empty($_SESSION['flash_success'])): ?>
-<div class="alert alert-success" style="margin-bottom:16px"><i class="fa-solid fa-check-circle"></i> <?= e($_SESSION['flash_success']) ?></div>
-<?php unset($_SESSION['flash_success']); endif; ?>
 
 <!-- Filter bar -->
 <div style="display:flex;gap:10px;align-items:center;margin-bottom:18px;flex-wrap:wrap">

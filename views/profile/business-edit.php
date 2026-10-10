@@ -15,84 +15,16 @@ $countryCodes = [
 ];
 ?>
 <style>
-.bpe-wrap{display:flex;gap:24px;align-items:flex-start}
-.bpe-nav{width:220px;flex-shrink:0;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;overflow:hidden;position:sticky;top:20px}
-.bpe-nav .bpe-book-header{padding:16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
-.bpe-book-avatar{width:40px;height:40px;border-radius:10px;background:<?= e($book['color'] ?? '#1a6b4a') ?>;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:16px;flex-shrink:0}
-.bpe-book-name{font-size:13px;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.bpe-book-type{font-size:11px;color:var(--text-muted)}
-.bpe-nav a{display:flex;align-items:center;gap:10px;padding:11px 16px;color:var(--text);text-decoration:none;font-size:13px;font-weight:500;border-bottom:1px solid var(--border);transition:background .12s}
-.bpe-nav a:last-child{border-bottom:none}
-.bpe-nav a:hover{background:var(--hover-bg,rgba(0,0,0,.04))}
-.bpe-nav a.active{background:var(--brand-light,rgba(26,107,74,.08));color:var(--brand);font-weight:600}
-.bpe-nav a i{width:18px;text-align:center;font-size:14px}
-.bpe-nav .nav-group{padding:8px 16px 4px;font-size:10px;font-weight:700;letter-spacing:.06em;color:var(--text-muted);text-transform:uppercase;background:var(--bg)}
-.bpe-body{flex:1;min-width:0}
-.bpe-panel{background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:28px;margin-bottom:20px}
-.bpe-panel h2{font-size:17px;font-weight:700;margin:0 0 4px;color:var(--text)}
-.bpe-panel .panel-desc{font-size:13px;color:var(--text-muted);margin:0 0 22px}
-.bpe-panel hr{border:none;border-top:1px solid var(--border);margin:20px 0}
-.fg{margin-bottom:16px}
-.fg label{display:block;font-size:13px;font-weight:600;color:var(--text);margin-bottom:6px}
-.fg label .hint{font-weight:400;color:var(--text-muted);margin-left:6px;font-size:12px}
-.fg input[type=text],.fg input[type=email],.fg input[type=url],.fg input[type=number],
-.fg select,.fg textarea{width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;background:var(--input-bg,var(--bg));color:var(--text);font-size:14px;box-sizing:border-box;transition:border-color .15s;font-family:inherit}
-.fg input:focus,.fg select:focus,.fg textarea:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px rgba(26,107,74,.1)}
-.fg textarea{resize:vertical;min-height:90px}
-.fg-row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-.fg-row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
-.phone-row{display:flex;gap:8px}
-.phone-row select{width:130px;flex-shrink:0}
-.phone-row input{flex:1}
-.logo-zone{border:2px dashed var(--border);border-radius:12px;padding:20px;text-align:center;cursor:pointer;transition:all .2s;background:var(--bg);position:relative;overflow:hidden}
-.logo-zone:hover{border-color:var(--brand);background:rgba(26,107,74,.04)}
-.logo-zone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
-.logo-preview{max-height:70px;max-width:200px;object-fit:contain;margin:0 auto;display:none}
-.banner-zone{border:2px dashed var(--border);border-radius:12px;overflow:hidden;position:relative;min-height:100px;cursor:pointer;transition:border-color .2s}
-.banner-zone:hover{border-color:var(--brand)}
-.banner-zone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
-.banner-zone-inner{padding:24px;text-align:center}
-.banner-preview{width:100%;height:130px;object-fit:cover;display:none}
-.color-pick-row{display:flex;align-items:center;gap:12px}
-.color-swatch{width:40px;height:40px;border-radius:10px;border:2px solid var(--border);cursor:pointer;position:relative;overflow:hidden;flex-shrink:0}
-.color-swatch input[type=color]{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
-.vis-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)}
-.vis-row:last-child{border-bottom:none}
-.vis-info strong{display:block;font-size:13px;font-weight:600;color:var(--text)}
-.vis-info span{font-size:12px;color:var(--text-muted)}
-.toggle-switch{position:relative;width:42px;height:22px;flex-shrink:0}
-.toggle-switch input{opacity:0;width:0;height:0;position:absolute}
-.toggle-slider{position:absolute;inset:0;background:#ccc;border-radius:22px;cursor:pointer;transition:.2s}
-.toggle-slider:before{content:'';position:absolute;height:16px;width:16px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.2s}
-.toggle-switch input:checked + .toggle-slider{background:var(--brand)}
-.toggle-switch input:checked + .toggle-slider:before{transform:translateX(20px)}
-.repeat-item{display:flex;gap:8px;align-items:flex-start;padding:10px;background:var(--bg);border:1px solid var(--border);border-radius:8px;margin-bottom:8px}
-.repeat-item .item-fields{flex:1;display:grid;gap:8px}
-.repeat-del{background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:18px;padding:4px;border-radius:6px;transition:all .15s;flex-shrink:0}
-.repeat-del:hover{color:#e53e3e}
-.add-row-btn{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;padding:8px;background:var(--bg);border:1px dashed var(--border);border-radius:8px;color:var(--text-muted);font-size:13px;cursor:pointer;transition:all .15s}
-.add-row-btn:hover{border-color:var(--brand);color:var(--brand)}
+/* page-specific widgets (shell, forms, toggles, uploads, repeat rows come from settings.css) */
 .page-editor{border:1px solid var(--border);border-radius:8px;overflow:hidden}
 .page-editor-toolbar{padding:8px 12px;background:var(--bg);border-bottom:1px solid var(--border);display:flex;gap:6px;flex-wrap:wrap}
 .page-editor-toolbar button{padding:4px 10px;border:1px solid var(--border);border-radius:6px;background:var(--card-bg);font-size:12px;cursor:pointer;font-family:inherit;color:var(--text)}
 .page-editor-toolbar button:hover{background:var(--brand);color:#fff;border-color:var(--brand)}
-.profile-link-card{background:rgba(26,107,74,.06);border:1px solid var(--brand);border-radius:10px;padding:14px 18px;display:flex;align-items:center;gap:14px;margin-bottom:20px}
-.profile-link-card i{font-size:22px;color:var(--brand)}
-.profile-link-card .link-text{flex:1}
-.profile-link-card strong{display:block;font-size:14px;font-weight:700;color:var(--text)}
-.profile-link-card a{font-size:13px;color:var(--brand);word-break:break-all;text-decoration:none}
 .photo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:10px;margin-bottom:12px}
 .photo-thumb{border-radius:8px;overflow:hidden;aspect-ratio:1;background:var(--bg);border:1px solid var(--border);position:relative}
 .photo-thumb img{width:100%;height:100%;object-fit:cover}
-@media(max-width:760px){.bpe-wrap{flex-direction:column}.bpe-nav{width:100%;position:static}.fg-row,.fg-row-3{grid-template-columns:1fr}}
 </style>
 
-<?php if (!empty($_SESSION['flash_success'])): ?>
-<div class="alert alert-success" style="margin-bottom:16px"><i class="fa-solid fa-check-circle"></i> <?= e($_SESSION['flash_success']) ?><?php unset($_SESSION['flash_success']); ?></div>
-<?php endif; ?>
-<?php if (!empty($_SESSION['flash_error'])): ?>
-<div class="alert alert-error" style="margin-bottom:16px"><i class="fa-solid fa-triangle-exclamation"></i> <?= e($_SESSION['flash_error']) ?><?php unset($_SESSION['flash_error']); ?></div>
-<?php endif; ?>
 
 <div class="page-header">
     <div class="page-header-left">
@@ -111,32 +43,32 @@ $countryCodes = [
     <?php endif; ?>
 </div>
 
-<div class="bpe-wrap">
+<div class="st-wrap">
     <!-- Sidebar Nav -->
-    <nav class="bpe-nav">
-        <div class="bpe-book-header">
-            <div class="bpe-book-avatar"><?= mb_substr($book['name']??'B',0,1) ?></div>
+    <nav class="st-nav">
+        <div class="st-nav-head">
+            <div class="st-avatar" style="background:<?= e($book['color'] ?? '#1a6b4a') ?>"><?= e(mb_strtoupper(mb_substr($book['name']??'B',0,1))) ?></div>
             <div>
-                <div class="bpe-book-name"><?= e($book['name']) ?></div>
-                <div class="bpe-book-type">Business Book</div>
+                <div class="st-nav-name"><?= e($book['name']) ?></div>
+                <div class="st-nav-sub">Business Book</div>
             </div>
         </div>
-        <div class="nav-group">Profile</div>
+        <div class="st-nav-group">Profile</div>
         <a href="?tab=info"       class="<?= $tab==='info'?'active':'' ?>"><i class="fa-solid fa-building"></i> Business Info</a>
         <a href="?tab=pages"      class="<?= $tab==='pages'?'active':'' ?>"><i class="fa-solid fa-file-lines"></i> Pages</a>
         <a href="?tab=social"     class="<?= $tab==='social'?'active':'' ?>"><i class="fa-solid fa-share-nodes"></i> Social & Links</a>
         <a href="?tab=photos"     class="<?= $tab==='photos'?'active':'' ?>"><i class="fa-solid fa-images"></i> Photos</a>
-        <div class="nav-group">Privacy</div>
+        <div class="st-nav-group">Privacy</div>
         <a href="?tab=visibility" class="<?= $tab==='visibility'?'active':'' ?>"><i class="fa-solid fa-eye"></i> Visibility</a>
-        <div class="nav-group">Go Back</div>
+        <div class="st-nav-group">Go Back</div>
         <a href="/books/<?= $book['id'] ?>/edit"><i class="fa-solid fa-arrow-left"></i> Book Settings</a>
     </nav>
 
     <!-- Content -->
-    <div class="bpe-body">
+    <div class="st-body">
 
     <?php if ($handle): ?>
-    <div class="profile-link-card">
+    <div class="link-card">
         <i class="fa-solid fa-link"></i>
         <div class="link-text">
             <strong>Public Business Profile</strong>
@@ -151,9 +83,8 @@ $countryCodes = [
     <?php if ($tab === 'info'): ?>
     <!-- ── BUSINESS INFO ────────────────────────────────────────────── -->
     <!-- Handle -->
-    <div class="bpe-panel">
-        <h2>Business Handle</h2>
-        <p class="panel-desc">Your unique @handle for the public business profile URL.</p>
+    <div class="st-panel">
+        <div class="st-head"><div><h2>Business Handle</h2><p class="panel-desc">Your unique @handle for the public business profile URL.</p></div></div>
         <form method="POST" action="/books/<?= $book['id'] ?>/business-profile/handle">
             <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
             <div class="fg">
@@ -168,9 +99,8 @@ $countryCodes = [
     </div>
 
     <!-- Core Info -->
-    <div class="bpe-panel">
-        <h2>Core Information</h2>
-        <p class="panel-desc">Basic business details shown on your public profile.</p>
+    <div class="st-panel">
+        <div class="st-head"><div><h2>Core Information</h2><p class="panel-desc">Basic business details shown on your public profile.</p></div></div>
         <form method="POST" action="/books/<?= $book['id'] ?>/business-profile/info" enctype="multipart/form-data">
             <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
 
@@ -309,9 +239,8 @@ $countryCodes = [
 
     <?php elseif ($tab === 'pages'): ?>
     <!-- ── PAGES ────────────────────────────────────────────────────── -->
-    <div class="bpe-panel">
-        <h2>Content Pages</h2>
-        <p class="panel-desc">Write your About, Terms of Service, and Privacy Policy pages. These will be shown as tabs on your public profile.</p>
+    <div class="st-panel">
+        <div class="st-head"><div><h2>Content Pages</h2><p class="panel-desc">Write your About, Terms of Service, and Privacy Policy pages. These will be shown as tabs on your public profile.</p></div></div>
         <form method="POST" action="/books/<?= $book['id'] ?>/business-profile/pages">
             <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
             <?php foreach (['page_about'=>'About Us','page_terms'=>'Terms of Service','page_privacy'=>'Privacy Policy'] as $field=>$label): ?>
@@ -326,9 +255,8 @@ $countryCodes = [
 
     <?php elseif ($tab === 'social'): ?>
     <!-- ── SOCIAL & LINKS ────────────────────────────────────────────── -->
-    <div class="bpe-panel">
-        <h2>Social Media</h2>
-        <p class="panel-desc">Add your business social media profiles.</p>
+    <div class="st-panel">
+        <div class="st-head"><div><h2>Social Media</h2><p class="panel-desc">Add your business social media profiles.</p></div></div>
         <form method="POST" action="/books/<?= $book['id'] ?>/business-profile/social">
             <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
             <?php
@@ -361,9 +289,8 @@ $countryCodes = [
 
     <?php elseif ($tab === 'photos'): ?>
     <!-- ── PHOTOS ────────────────────────────────────────────────────── -->
-    <div class="bpe-panel">
-        <h2>Photo Gallery</h2>
-        <p class="panel-desc">Upload photos to showcase your business. These appear in the Photos tab of your public profile.</p>
+    <div class="st-panel">
+        <div class="st-head"><div><h2>Photo Gallery</h2><p class="panel-desc">Upload photos to showcase your business. These appear in the Photos tab of your public profile.</p></div></div>
         <?php if (!empty($photos)): ?>
         <div class="photo-grid">
             <?php foreach ($photos as $photo): ?>
@@ -386,9 +313,8 @@ $countryCodes = [
 
     <?php elseif ($tab === 'visibility'): ?>
     <!-- ── VISIBILITY ────────────────────────────────────────────────── -->
-    <div class="bpe-panel">
-        <h2><i class="fa-solid fa-eye"></i> Public Visibility</h2>
-        <p class="panel-desc">Control what information is visible on your public business profile.</p>
+    <div class="st-panel">
+        <div class="st-head"><div class="st-icon"><i class="fa-solid fa-eye"></i></div><div><h2>Public Visibility</h2><p class="panel-desc">Control what information is visible on your public business profile.</p></div></div>
         <form method="POST" action="/books/<?= $book['id'] ?>/business-profile/visibility">
             <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
             <?php
@@ -431,8 +357,8 @@ $countryCodes = [
     </div>
     <?php endif; ?>
 
-    </div><!-- /.bpe-body -->
-</div><!-- /.bpe-wrap -->
+    </div><!-- /.st-body -->
+</div><!-- /.st-wrap -->
 
 <script>
 function previewLogo(input) {

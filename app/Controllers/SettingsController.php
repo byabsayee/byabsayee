@@ -36,7 +36,7 @@ class SettingsController
             [$name, $email, $phone ?: null, $user['id']]
         );
         // Sync session so the page reflects the change immediately
-        $_SESSION['user'] = Database::row('SELECT * FROM users WHERE id=?', [$user['id']]);
+        refresh_session_user((int)$user['id']);
         redirect('/settings?tab=profile', ['success' => 'Profile updated.']);
     }
 
@@ -61,7 +61,7 @@ class SettingsController
         }
 
         Database::run('UPDATE users SET password_hash=? WHERE id=?', [password_hash($new, PASSWORD_DEFAULT), $user['id']]);
-        $_SESSION['user'] = Database::row('SELECT * FROM users WHERE id=?', [$user['id']]);
+        refresh_session_user((int)$user['id']);
         redirect('/settings?tab=password', ['success' => 'Password changed successfully.']);
     }
 
@@ -84,7 +84,7 @@ class SettingsController
             );
             // Sync session so the page reflects the change immediately — without this,
             // the form kept rendering the stale values cached in $_SESSION['user'].
-            $_SESSION['user'] = Database::row('SELECT * FROM users WHERE id=?', [$user['id']]);
+            refresh_session_user((int)$user['id']);
             redirect('/settings?tab=preferences', ['success' => 'Preferences saved.']);
         } catch (\Throwable $e) {
             redirect('/settings?tab=preferences', ['error' => 'Could not save preferences. Please try again — if this keeps happening, contact support.']);
@@ -112,7 +112,7 @@ class SettingsController
                 [$emailNotifications, json_encode($prefs), $user['id']]
             );
             // Sync session so the toggles reflect the saved state immediately
-            $_SESSION['user'] = Database::row('SELECT * FROM users WHERE id=?', [$user['id']]);
+            refresh_session_user((int)$user['id']);
             redirect('/settings?tab=notifications', ['success' => 'Notification preferences saved.']);
         } catch (\Throwable $e) {
             redirect('/settings?tab=notifications', ['error' => 'Could not save notification preferences. Please try again.']);
